@@ -1,0 +1,136 @@
+.\" @(#)alienfx.1 0.1 2010-11-01 Talisman
+.ds p alienfx
+.TH alienfx 1 "2010-11-01" "Group Talisman" "Talisman Utilities"
+.SH NAME
+alienfx \- control the AlienFX device seen on some AlienWare Aurora computers
+.SH SYNOPSIS
+.LP
+.B \*p
+[ \fB\- | \fIcommand\fP ]
+.SH DESCRIPTION
+.LP
+.B \*p
+is a utility for controlling the AlienWare AlienFX LED case lighting system
+as seen on the Aurora line, generally sold by Dell.
+.SH OPTIONS
+.PP
+.B \*p
+accetps either a single command provided as arguments, or a series of
+commands from stdin if so indicated.
+.TP 15
+.B \-
+Read commands from stdin
+.TP
+.B \fIcommand\fP
+Attempt to execute the remaining arguments as a command.
+.SH COMMANDS
+.PP
+Currently only two commands are supported:
+.TP 5
+.B info
+.IP
+Output a list of simple and combined light regions, each with a hexadecimal
+region spec, whether it's a primtive (single-region) specifier or a composite
+specifier, and an ASCII string that can be used interchangeably with the
+hexadecimal region spec in other commands.
+When used as arguments, hexadecimal region specifiers
+should \fBomit\fP any "0x" prefix.
+.TP 5
+.B color \fIred\fP \fIgreen\fP \fIblue\fP [ \fIregionmask\fP ]
+.IP
+The red, green, and blue are expected to be integers in the range [0, 255],
+and together indicate a single RGB color.   By default all regions are
+set to the specified color, but any additional arguments will be interpreted
+as region identifiers to set specifically, overridding the default.
+.SH "RETURN VALUE"
+.LP
+.B \*p
+attempts to return a non-zero exit status upon an error.
+.SH EXAMPLES
+.LP
+To set all the lights to cyan:
+.IP
+.B \*p
+.B color
+.B 0
+.B 255
+.B 255
+.LP
+To turn on the lights off:
+.IP
+.B \*p
+.B color
+.B 0
+.B 0
+.B 0
+.LP
+To get a listing of lighting regions, showing example output from the Aurora:
+.IP
+.B \*p
+.B info
+.IP
+  light primitives 4
+  light composites 3
+  region type      name
+  ------ --------- ----
+     0x1 primitive head
+     0x8 primitive front
+    0x80 primitive right
+   0x100 primitive left
+   0x180 composite sides
+   0x188 composite panels
+   0x189 composite all
+.LP
+A few ways to set the lights to medium yellow on the alien head and case sides
+(omitting the lower case front),
+using region identifiers from the \fBinfo\fP output above:
+.IP
+.B \*p
+.B color
+.B 127
+.B 127
+.B 0
+.B head
+.B 180
+.IP
+.B echo
+.B color
+.B 127
+.B 127
+.B 0
+.B head
+.B sides
+.B |
+.B \*p
+.B \-
+.SH NOTES
+.LP
+Minimally, the program should be extended to handle additional AlienFX
+variaties, and the regionmask should be made device independent.
+.LP
+When feeding color settings in from stdin, note that at least some
+versions of the chipset seem to have a minimum cycle time of between
+one and two seconds, and that attempts to execute color commands at
+shorter intervals will likely produce nondeterministic results.
+.LP
+Fades between colors, strobing, pulsing, and so forth are offered by the
+chipset but not yet supported by this program.
+.LP
+The regions are \fBnot\fP the same on different cases.  
+If an incorrect ASCII region name is given, the program will generate an
+error message but will still attempt to process the rest of the region
+specifiers, although use of the default will be disabled.
+.SH COPYRIGHT
+.IP "Copyright (c) 2010 C. Alex. North-Keys"
+.PP
+.B \*p
+is distributed under the terms of the GNU General Public License.
+See http://www.gnu.org/licenses/ for complete information.
+.PP
+This software is provided "as is", with no warranty, guarantee, support,
+maintenance, update schedule, claims to fitness for any purpose, or
+anything else from the author or any other physical or legal entity.
+.SH "SEE ALSO"
+.BR alienfx-uptime (8),
+.BR udevadm (8),
+.BR udev (8)

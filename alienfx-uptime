@@ -1,0 +1,87 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import argparse
+import subprocess
+import sys
+import time
+
+Program = '<unknown>'
+
+def Int0to255(n_string):
+    n = int(n_string)
+    if 0 <= n <= 255:
+        return n
+    raise argparse.ArgumentTypeError('%r not in integer range [0,255]' % (n,))
+
+Parser = argparse.ArgumentParser(
+    description='''Visualize CPU load on the system's AlienFX lighting.''')
+Parser.add_argument('-a', '--amplitude', dest='amplitude', action='store',
+                    type=Int0to255, default=255, help=
+                    'lighting amplitude in the range [0, 255] (default 255)')
+Parser.add_argument('-d', '--dry-run', dest='dryrun', action='store_true',
+                    default=False, help=
+                    'Show subcommands instead of executing them.')
+
+def Syntax():
+    pass
+
+def Cage(mn, num, mx):          # min-limit number max-limit -- caged-num
+    if   mn > num: return mn
+    elif mx < num: return mx
+    else:          return num
+
+def Main():
+    args = Parser.parse_args()    # returns a Namespace object
+    amplitude = args.amplitude
+    dryrun = args.dryrun
+
+    cpucount = 0                # a bit of a pessimistic start...
+    with open('/proc/cpuinfo') as cpuinfo:
+        lines = cpuinfo.read().split('\n')
+        for line in lines:
+            if line.startswith('processor'):
+                cpucount += 1
+
+    if not dryrun:
+        alienfx = subprocess.Popen(["alienfx", "-"],
+                                   stdin=subprocess.PIPE,
+                                   bufsize=1,
+                                   close_fds=True
+                                   )
+    while True:
+        uptime = subprocess.Popen(["uptime"],
+                                  stdout=subprocess.PIPE).communicate()[0]
+#        print uptime
+        load_all = float(uptime.split(':')[-1].split(',')[-3].strip())
+        load = Cage(0, load_all / float(cpucount), 1)
+        red, green, blue = 0, 0, 0
+#        print 'load %s' % load
+        if load < 0.2:
+            slider = 5 * load;     # [0, 1)
+#            print 'low slider %s' % slider
+            green = 0 + slider
+            blue  = 1 - slider
+        else:                       # load in (0.1, 1.0]
+            #        ( 0 to 0.9 ) ... scaled
+            slider = (load - 0.2) / 0.8
+#            print 'high slider %s' % slider
+            green = 1. - slider
+            red   = 0. + slider
+        # scale and integerize the components
+#        print 'A: red %f, green %f, blue %f' % (red, green, blue)
+        red    = int(amplitude * red)
+        green  = int(amplitude * green)
+        blue   = int(amplitude * blue)
+#        print 'B: red %d, green %d, blue %d' % (red, green, blue)
+        cmd = "color %d %d %d" % (red, green, blue)
+#        print 'CMD: %s' % cmd
+        if dryrun:
+            print(cmd + ' # load (all %f, avg %f) cpus %d' % (load_all, load, cpucount))
+        else:
+            alienfx.stdin.write(cmd + '\n')
+        time.sleep(2)
+
+Main()
+
+#--------------------------eof

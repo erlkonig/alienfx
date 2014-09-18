@@ -1,0 +1,368 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+#define HAVE_CONFIG_H
+
+#ifdef __GNUC__				/* added 1999-09-02 for ptsname(), etc. */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#else
+#define _XOPEN_SOURCE
+#endif
+
+
+/* Define to 1 if you have the `atexit' function. */
+#undef HAVE_ATEXIT
+
+/* Define to 1 if you have the `bzero' function. */
+#undef HAVE_BZERO
+
+/* Define to 1 if you have the <crypt.h> header file. */
+#undef HAVE_CRYPT_H
+
+/* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
+#undef HAVE_DOPRNT
+
+/* Define to 1 if function or macro draino exists */
+#undef HAVE_DRAINO
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the `getauid' function. */
+#undef HAVE_GETAUID
+
+/* Define to 1 if function or macro getmaxyx exists */
+#undef HAVE_GETMAXYX
+
+/* Define to 1 if you have the `getsubopt' function. */
+#undef HAVE_GETSUBOPT
+
+/* Define to 1 if you have the `grantpt' function. */
+#undef HAVE_GRANTPT
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if library -lcrack exists */
+#undef HAVE_LIBCRACK
+
+/* Define to 1 if library -lcrypt exists */
+#undef HAVE_LIBCRYPT
+
+/* Define to 1 if library "-lncurses -ltermcap" exists */
+#undef HAVE_LIBCURSES
+
+/* Define to 1 if library "-lGL -lpthread" exists */
+#undef HAVE_LIBGL
+
+/* Define to 1 if library "-lgltk" exists */
+#undef HAVE_LIBGLTK
+
+/* Define to 1 if library "-lGLU" exists */
+#undef HAVE_LIBGLU
+
+/* Define to 1 if library "-lglut" exists */
+#undef HAVE_LIBGLUT
+
+/* Define to 1 if library "-lGLw" exists */
+#undef HAVE_LIBGLW
+
+/* Define to 1 if library "-lICE" exists */
+#undef HAVE_LIBICE
+
+/* */
+#undef HAVE_LIBIMAGE
+
+/* Define to 1 if library -limage exists */
+#undef HAVE_LIBIMAGESGI
+
+/* Define to 1 if library "-lImlib" exists */
+#undef HAVE_LIBIMLIB
+
+/* Define to 1 if library "-lImlib2" exists */
+#undef HAVE_LIBIMLIB2
+
+/* Define to 1 if library "-lgl" exists */
+#undef HAVE_LIBIRISGL
+
+/* Define to 1 if library -lm exists */
+#undef HAVE_LIBM
+
+/* Define to 1 if library -lmalloc exists */
+#undef HAVE_LIBMALLOC
+
+/* */
+#undef HAVE_LIBNCURSES
+
+/* Define to 1 if library -lpng exists */
+#undef HAVE_LIBPNG
+
+/* Define to 1 if library -lpthread exists */
+#undef HAVE_LIBPTHREAD
+
+/* Define to 1 if library -lrpcsvc exists */
+#undef HAVE_LIBRPCSVC
+
+/* Define to 1 if library "-lSM" exists */
+#undef HAVE_LIBSM
+
+/* Define to 1 if library "$LIBSOCKET -lxnet" exists */
+#undef HAVE_LIBSOCKET
+
+/* Define to 1 if library -lsun exists */
+#undef HAVE_LIBSUN
+
+/* Define to 1 if library -ltermcap exists */
+#undef HAVE_LIBTERMCAP
+
+/* Define to 1 if library -lX11 exists */
+#undef HAVE_LIBX11
+
+/* Define to 1 if library "-lX11-xcb" exists */
+#undef HAVE_LIBX11_XCB
+
+/* Define to 1 if library "-lXau" exists */
+#undef HAVE_LIBXAU
+
+/* Define to 1 if library "-lXaw" exists */
+#undef HAVE_LIBXAW
+
+/* */
+#undef HAVE_LIBXCB
+
+/* Define to 1 if library -lxcb exists */
+#undef HAVE_LIBXCB_CORE
+
+/* Define to 1 if library "-lxcb-glx" exists */
+#undef HAVE_LIBXCB_GLX
+
+/* Define to 1 if library "-lxcb-render" exists */
+#undef HAVE_LIBXCB_RENDER
+
+/* Define to 1 if library "-lXext" exists */
+#undef HAVE_LIBXEXT
+
+/* Define to 1 if library "-lXi" exists */
+#undef HAVE_LIBXI
+
+/* Define to 1 if library "-lXm" exists */
+#undef HAVE_LIBXM
+
+/* Define to 1 if library "-lXmu" exists */
+#undef HAVE_LIBXMU
+
+/* */
+#undef HAVE_LIBXNET
+
+/* Define to 1 if library "-lXt" exists */
+#undef HAVE_LIBXT
+
+/* Define to 1 if library "-lXtst" exists */
+#undef HAVE_LIBXTST
+
+/* Define to 1 if the type `long double' works and has more range or precision
+   than `double'. */
+#undef HAVE_LONG_DOUBLE
+
+/* Define to 1 if the type `long double' works and has more range or precision
+   than `double'. */
+#undef HAVE_LONG_DOUBLE_WIDER
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the `modf' function. */
+#undef HAVE_MODF
+
+/* Define to 1 if you have the `modfl' function. */
+#undef HAVE_MODFL
+
+/* Define to 1 if you have the `on_exit' function. */
+#undef HAVE_ON_EXIT
+
+/* Define to 1 if you have the <pthread.h> header file. */
+#undef HAVE_PTHREAD_H
+
+/* Define to 1 if you have the `ptsname' function. */
+#undef HAVE_PTSNAME
+
+/* Define to 1 if you have the `rint' function. */
+#undef HAVE_RINT
+
+/* Define to 1 if you have the <rpcsvc/yppasswd.h> header file. */
+#undef HAVE_RPCSVC_YPPASSWD_H
+
+/* Define to 1 if you have the `seteuid' function. */
+#undef HAVE_SETEUID
+
+/* Define to 1 if you have the `setsid' function. */
+#undef HAVE_SETSID
+
+/* Define to 1 if you have the `setutent' function. */
+#undef HAVE_SETUTENT
+
+/* Define to 1 if you have the `sginap' function. */
+#undef HAVE_SGINAP
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the `strftime' function. */
+#undef HAVE_STRFTIME
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the <stropts.h> header file. */
+#undef HAVE_STROPTS_H
+
+/* Define to 1 if you have the <sys/byteorder.h> header file. */
+#undef HAVE_SYS_BYTEORDER_H
+
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
+#undef HAVE_SYS_IOCTL_H
+
+/* Define to 1 if you have the <sys/select.h> header file. */
+#undef HAVE_SYS_SELECT_H
+
+/* Define to 1 if you have the <sys/sockio.h> header file. */
+#undef HAVE_SYS_SOCKIO_H
+
+/* Define to 1 if you have the <sys/statvfs.h> header file. */
+#undef HAVE_SYS_STATVFS_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
+#undef HAVE_SYS_WAIT_H
+
+/* Define to 1 if you have the `tcsetpgrp' function. */
+#undef HAVE_TCSETPGRP
+
+/* Define to 1 if you have the <termios.h> header file. */
+#undef HAVE_TERMIOS_H
+
+/* Define to 1 if you have the `trunc' function. */
+#undef HAVE_TRUNC
+
+/* Define to 1 if you have the `truncl' function. */
+#undef HAVE_TRUNCL
+
+/* Define to 1 if you have the `ttyname' function. */
+#undef HAVE_TTYNAME
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 if you have the `unlockpt' function. */
+#undef HAVE_UNLOCKPT
+
+/* Define to 1 if you have the `unsetenv' function. */
+#undef HAVE_UNSETENV
+
+/* Define to 1 if you have the `usleep' function. */
+#undef HAVE_USLEEP
+
+/* Define to 1 if you have the `vprintf' function. */
+#undef HAVE_VPRINTF
+
+/* Define to 1 if function or macro wresize exists */
+#undef HAVE_WRESIZE
+
+/* Define to 1 if you have the `yppasswd' function. */
+#undef HAVE_YPPASSWD
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
+/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
+   `char[]'. */
+#undef YYTEXT_POINTER
+
+/* Define to 1 if type `char' is unsigned and you are not using gcc.  */
+#ifndef __CHAR_UNSIGNED__
+# undef __CHAR_UNSIGNED__
+#endif
+
+/* Define to `int' if <curses.h> doesn't define. */
+#undef chtype
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
+#undef inline
+#endif
+
+/* Define to `int' if <sys/types.h> does not define. */
+#undef mode_t
+
+/* Define to `long int' if <sys/types.h> does not define. */
+#undef off_t
+
+/* Define to `int' if <sys/types.h> does not define. */
+#undef pid_t
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef uid_t
+
+/* Define to empty if the keyword `volatile' does not work. Warning: valid
+   code using `volatile' can become incorrect without. Disable with care. */
+#undef volatile
+
+#ifndef HAVE_USLEEP
+#ifdef HAVE_SGINAP
+#define usleep(u) sginap(sysconf(3)*(u)/1000000)
+#else
+#error usleep unavailable
+#endif
+#endif /* HAVE_USLEEP */
+
+/*------------------------------------------------------------------eof--*/
+

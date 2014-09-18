@@ -1,0 +1,1491 @@
+#	GNUmakecore -*- makefile -*-
+#	Notes are at the end of this file, see ``Useful Variables'' for a template
+#
+GENERATOR	= "@configure_input@"
+THISFILE	= "GNUmakecore"
+MAKEFILE	= "GNUmakefile"
+AUTHOR		= "C. Alex. North-Keys"
+GROUP		= "Group Talisman"
+#
+VERSION = Gnu.30 2010-11-11 14:08:12 CST (Nov Thu) add CCMODEFLAGS
+#
+#	Make spawns depth-first traversal throughout the subtree.
+#	During this recursion, the last thing done in each directory node is to
+#	carry out whatever action on the files was requested.
+#
+#	The variable INC and LIB may be set from the command line to specify
+#	extra CPPFLAGS for includes (INC), and LDFLAGS for -L options (LIB).
+#------------------------------------------------------------- Options
+
+MAKEFLAGS += --no-print-directory
+SHELL	=	/bin/sh
+# INDENT_FILTER = sed 's@.*@   &@g' 1>&2
+# The perl version disables buffering
+INDENT_FILTER = perl -e '$$| = 1; while(<STDIN>){ s/^/    /; print; }' 1>&2
+
+# Note that targets that build may require the library and config.h,
+# but targets which remove things generally only require the GNUmakecore file.
+# The target "destdirs" also only requires GNUmakecore.
+
+#	Reserved target names
+NONRECURSORS_BUILDERS = \
+	paper doc shar
+
+#	Obsolete commands
+NONRECURSORS_OBSOLETE = \
+	Makefile Makefiles install.man includes lint lint1
+
+NONRECURSORS_BUILDLESS = \
+	destdirs \
+	help status tellvers telldest tellmode tellvars \
+	kempt_aux tidy_aux clean_aux pure_aux pristine_aux scoured_aux \
+	mostlyclean distclean maintainer-clean installdirs
+
+NONRECURSORS = $(NONRECURSORS_OBSOLETE) $(NONRECURSORS_BUILDERS) $(NONRECURSORS_BUILDLESS)
+
+#	"all" must be the first target in the RECURSORS_BUILDERS_WITH_CCF list
+#	"WITH_CCF" refers to "With C Compiler Flags"
+RECURSORS_BUILDERS_WITH_CCF = \
+	all \
+	archive shlib objects assembly preprocess binge \
+	normal paranoid neurotic fascist profile debug optimize optimise \
+	install install-strip
+
+#	Depend seems a WITH_CCF candidate, but the  current flags make no difference.
+RECURSORS_BUILDERS_NO_CCF = \
+	strip \
+	info tags \
+	dist \
+	depend \
+	cvscommit cvsupdate cvsdiff cvsimport
+
+RECURSORS_BUILDERS = $(RECURSORS_BUILDERS_WITH_CCF) $(RECURSORS_BUILDERS_NO_CCF)
+
+#	targets which create nothing and may actually destroy things
+RECURSORS_BUILDLESS = \
+	traverse \
+	du \
+	undist \
+	undepend \
+	uninstall \
+	kempt tidy clean pure pristine scoured
+
+RECURSORS = $(RECURSORS_BUILDERS) $(RECURSORS_BUILDLESS)
+
+BUILDERS  = $(NONRECURSORS_BUILDERS)  $(RECURSORS_BUILDERS)
+BUILDLESS = $(NONRECURSORS_BUILDLESS) $(RECURSORS_BUILDLESS)
+
+.PHONY: $(NONRECURSORS) $(RECURSORS)
+
+#------------------------------------------------------------- Variables
+
+MEMCONV	=	$(addsuffix .X,$(basename $(MEMSRCS)))
+MEMBERS	=	$(MEMCONV:.X=.o)
+MEMDEPS	=	$(addprefix $(DEPSDIR)/,$(MEMCONV:.X=.d))
+MEMARCH =	$(patsubst %,$(ARCHIVE)(%),$(MEMBERS))
+ALLSRCS	=	$(SRCS) $(MEMSRCS) $(HEADERS)
+DEPSDIR =	.depend
+
+ifndef ARCH
+export ARCH :=  $(shell echo `uname -s`-`uname -p`-`uname -r | awk -F. '{print $1"."$2}'` | tr '[A-Z]' '[a-z]' || echo unknown)
+endif
+
+#	Object, Assembly, Preprocessed
+# addsuffix .X,$(basename $(SRCS)))
+CONV	=	$(filter  %.c,$(SRCS))
+CONVXX	=	$(filter %.cc,$(SRCS))
+DEPS	=	$(addprefix $(DEPSDIR)/,$(CONV:.c=.d) $(CONVXX:.cc=.d)) $(MEMDEPS)
+OBJS    =	$(CONV:.c=.o) $(CONVXX:.cc=.oo)
+PPRS    =	$(CONV:.c=.i) $(CONVXX:.cc=.ii)
+ASMS    =	$(CONV:.c=.s) $(CONVXX:.cc=.ss)
+
+# The TESTS variable should include all (valid) .t modules tests, which
+#   will be tested automatically.
+# TESTS	=	$(addsuffix .t,$(basename $(SRCS) $(MEMSRCS)))
+
+#------------------------------------------------------------- Compile How?
+
+#	The following flags are specific to GCC 2.3.3+
+
+#	-finline-functions		# should no longer be necessary 
+#	-fkeep-inline-functions # obsolete
+#	-funroll-loops			# still had a bug in 2.2.2
+
+#	-O  includes -fthread-jumps and -fdelayed-branch
+#	-O2 includes all -f(flags) except for:
+#		 -funroll-loops -funroll-all-loops -fomit-frame-pointer
+#	-O3 includes loop unrolling
+
+# NOTE: GNU c++ example compile times by -O options:
+#    -O0:  3.4 s (same as no -O option)
+#    -O1: 13.8 s (same as just -O)
+#    -O2: 17.0 s
+#    -O3: 78.0 s
+#	-Wfloat-equal # warn in circumstances when nexttoward() might be advisable.
+#                 # oh great, it warns when it shouldn't too.
+
+CCParanoidWarnings  = -W -Wall \
+	-Wno-empty-body -Wno-implicit -Wno-unused -Wno-parentheses -Wno-comment \
+	-Wpointer-arith
+
+#?	-Wundef			# bitch about undefined identifiers in #if's
+#	-Wshadow		# bitch about shadowed locals (actually, we -like- shadowing)
+#	-Wbad-function-cast	# bitch (in C) about questionable casts of func returns.
+#	-Wcast-qual -Wcast-align	# bitch about various cast weirdness.
+#	-Wnested-externs	# bitch about extern's in functions.
+#	-Wredundant-decls	# bitch about redundance in same scope.
+#	-Wstrict-prototypes	# bitch about void foo(), with missing void.
+#	-Wmissing-prototype	# bitch (in C) on unprotyped global functions
+#	-Wmissing-declaration	# bitch (in C) on global functions w/o prior decls.
+#	-Waggregate-return	# bitch on returns of struct, union or array.
+#	-Wconversion	# would bitch about explicit conversions.
+#	-Wwrite-strings	# causes terror on:  const char *foo[] = { "hi", NULL }.
+#	-Wunused		# this always bitches about the Version-like constants.
+#	-Wcomment		# /* /* */ is used all too commonly.
+#	-Wimplicit		# this just makes coping with incomplete headers a pain.
+#	-Wparentheses	# bitches uselessly about if(a = 23) style logicals.
+
+CCNeuroticWarnings =  \
+	-Wcast-align -Winline -Wstrict-prototypes
+
+#	-Wredundant-decls # bitch about redundant identical prototypes
+
+CCFascistWarnings = -Werror
+
+#	modes:  (normal) paranoid neurotic fascist optimize profile debug
+#	add -O to paranoid/neurotic/fascist to get full warnings.
+CCAny       = -pipe
+CCNormal	= $(CCAny) -g
+CCParanoid	=  $(CCNormal) -O $(CCParanoidWarnings)
+CCNeurotic	=   $(CCParanoid) $(CCNeuroticWarnings)
+CCFascist	=    $(CCNeurotic) $(CCFascistWarnings)
+CCDebug		=    $(CCNeurotic) -O0 -DDEBUG
+CCProfile	=  $(CCOptimize) -pg
+#   note: O2 and above need -fno-delete-null-pointer-checks
+CCOptimize	= $(CCAny) -O3 -fno-delete-null-pointer-checks
+
+#   note: one author has complained that GCC/LD like to strip
+#         symbols by default and drop frame pointers.  The latter
+#         can be prevented with -fno-omit-frame-pointer, to ease
+#         stack profiling.
+
+#------------------------------------------------------------- Variables
+
+# Use "./configure --prefix=" to cleanly set up for / as the prefix
+
+# Networked Examples: netwide system GNU pod, a user's home pod
+# ./configure --prefix=/pod/gnu --exec-prefix='/pod/gnu/abi/${ARCH}'
+# ./configure --prefix='${HOME}'/pod --exec-prefix='${HOME}'/pod/abi/'${ARCH}'
+
+# PROBLEM (XXX)
+# It would be better to get ${HOME} or "~" passed all the way in as a literal
+#  with the following assumptions applying:
+#
+# 1) The shell will expand it in all necessary commands (i.e. BASH)
+#    - if ${HOME} can be passed all the way in, than Bourne sh is enough
+# 2) Programs will call a function to do ~ expansion on directories
+
+# The more standard one - all the host_prefix quirks happen for non-null prefix
+prefix        := @prefix@
+exec_prefix	  := @exec_prefix@
+datadir       := @datadir@#      this is only here to support $lispdir
+
+# part of this build method, arch-descriptions go here for now, see CONFIG_H
+DESTABI        = $(if $(exec_prefix),$(exec_prefix),/etc/abi)
+
+# - read only architecture-specific
+DESTBIN        = @bindir@#				/usr/local/[abi/]bin
+DESTSBIN       = @sbindir@#				/usr/local/[abi/]sbin
+DESTLIBEXEC    = @libexecdir@#			/usr/local/[abi/]libexec
+DESTLIB        = @libdir@#				/usr/local/[abi/]lib
+# - read only host-specific
+#   SHARED FILESYSTEMS
+#   The idea of /pod/gnu/host/$hostname/etc and /pod/gnu/host/$hostname/var
+#    was explored, but it's unrealistic to assume that an app will be installed
+#    seperately for each host using the shared filesystem - new machines can
+#    be expected to appear later, at which time they'll have no config.
+#   Apps with host[name]-specific issues can, of course, create directories
+#    themselves like /pod/gnu/etc/<app>/$hostname or whatever.
+DESTCONFSYS    = @sysconfdir@#			/usr/local/etc
+DESTSTATE      = @localstatedir@#		/usr/local/var
+# - read/write shared
+DESTSTATESH    = @sharedstatedir@#		/usr/local/com
+# - read only shared
+DESTDATA       = @datadir@#				/usr/local/share (lispdir's under here)
+DESTLISP       = @lispdir@#			/usr/local/share/emacs/site-lisp
+DESTINC        = @includedir@#			/usr/local/include
+DESTBINSH      = $(prefix)/bin#			/usr/local/bin
+# - read only shared - these three are not part of the GNU variable set
+DESTCONF       = $(prefix)/etc#			/usr/local/etc 
+DESTDIST       = $(prefix)/pub#			/usr/local/pub
+DESTDOC        = $(prefix)/doc#			/usr/local/doc
+# - read only shared (documentation)
+DESTINFO       = @infodir@#				/usr/local/info				
+DESTMAN        = @mandir@#				/usr/local/man
+DESTMAN1       = $(DESTMAN)/man1#		/usr/local/man/man1
+DESTMAN2       = $(DESTMAN)/man2#		/usr/local/man/man2
+DESTMAN3       = $(DESTMAN)/man3#		/usr/local/man/man3
+DESTMAN4       = $(DESTMAN)/man4#		/usr/local/man/man4
+DESTMAN5       = $(DESTMAN)/man5#		/usr/local/man/man5
+DESTMAN6       = $(DESTMAN)/man6#		/usr/local/man/man6
+DESTMAN7       = $(DESTMAN)/man7#		/usr/local/man/man7
+DESTMAN8       = $(DESTMAN)/man8#		/usr/local/man/man8
+DESTMAN9       = $(DESTMAN)/man9#		/usr/local/man/man9
+# These have system-specific details, like whether compressed or not, etc.
+# It is highly annoying the extensions share no variables with the directories.
+MAN1EXT        = .1
+MAN2EXT        = .2
+MAN3EXT        = .3
+MAN4EXT        = .4
+MAN5EXT        = .5
+MAN6EXT        = .6
+MAN7EXT        = .7
+MAN8EXT        = .8
+MAN9EXT        = .9
+
+# Note: we'd like to step through each of these and compress runs of slashes.
+
+DESTVARS = \
+	DESTABI \
+	DESTBIN DESTSBIN DESTLIBEXEC DESTLIB \
+	DESTCONFSYS DESTSTATE DESTSTATESH \
+	DESTBINSH DESTDATA DESTLISP DESTINC \
+	DESTCONF DESTDIST DESTDOC \
+	DESTINFO \
+	DESTMAN DESTMAN1 DESTMAN2 DESTMAN3 DESTMAN4 \
+	DESTMAN5 DESTMAN6 DESTMAN7 DESTMAN8 DESTMAN9
+
+DESTDIRS = $(foreach var,$(DESTVARS),$($(var)))
+
+#	additional include and library directories to be added for cpp and ld
+# CPPINCPATH	=	@CPPINCPATH@	# -idirafter <dir>  -or-  -I<dir>
+# LDLIBPATH	=	@LDLIBPATH@		# -L<dir>
+
+# This allows the config.h in the current directory to be used if an installed
+# one isn't present, pursuant to making self-complete tar distributions.
+CONFIG_H	=	$(firstword $(wildcard $(DESTABI)/config.h) config.h)
+
+# In special circumstances, the locations of included headers may need to
+# be set manually (such as when using a separate library).  To avoid
+# mangling the CPPFLAGS variable from the command line, the INC variable is
+# exposed here:
+INC			=
+CPPFLAGS    = $(INC) -include $(CONFIG_H)
+
+CC			= @CC@
+CXX			= @CXX@
+CCMODEFLAGS = $(CCNormal)
+# Toss what used to be a non-complaining C++ options
+CXXFLAGS    =	$(patsubst -Wno-implicit,,$(patsubst -Wstrict-prototypes,,$(CCMODEFLAGS)))
+COMPILE.c	=	$(CC) $(CPPFLAGS) $(CCMODEFLAGS) $(CCFLAGS)
+COMPILE.cxx	=	$(CXX) $(CPPFLAGS) $(CXXFLAGS)
+
+CCVER_OPTS	=	-v
+
+DEPENDLINE	= DO NOT DELETE THIS LINE -- make depend depends on it.
+DEPENDFLAGS	=	-MM
+DEPENDFILE	=	.depend
+
+# In special circumstances, -L options required for various libraries may
+# need to be set manually (such as when using a separate library).  To avoid
+# mangling the LDFLAGS variable from the command line, the LIB variable is
+# exposed here.  See SHLIB_LD in the SHLIB section for additional quirks.
+LIB         = 
+LDFLAGS		= $(LIB) @LDFLAGS@
+LD			= $(CC)
+LD_REAL		=	@LD@
+LDVER_OPTS	=	-v
+LDLIBS		=	$(patsubst lib%.a,-l%,$(ARCHIVE)) $(LIBSUN)
+LINK.c  	=	$(LD) $(CPPFLAGS) $(CCMODEFLAGS) $(CCFLAGS) $(LDFLAGS)
+LINK.cxx    =   $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
+
+# an interesting trick, put the associated -L option before the -l options
+LIBTALISMAN =	-ltalisman
+LIBTALISMAN++ =	-ltalisman++
+
+LIBC		=	-lc
+
+LIBM		=	@LIBM@ #		-lm
+LIBMALLOC	=	@LIBMALLOC@ #	-lmalloc
+LIBPTHREAD	=	@LIBPTHREAD@ #	-lpthread
+
+LIBIMAGESGI	=	@LIBIMAGESGI@ #	-limage
+LIBIMLIB	=	@LIBIMLIB@ #	-limlib
+LIBPNG		=	@LIBPNG@ #      -lpng
+LIBSOCKET	=	@LIBSOCKET@ #	-lsocket for Suns and some others
+LIBSUN		=	@LIBSUN@ #		-lsun for non-Suns :-)
+LIBRPCSVC	=	@LIBRPCSVC@ #	-lrpcsvc
+
+LIBCRACK	=	@LIBCRACK@ #	-lcrack
+LIBCRYPT	=	@LIBCRYPT@ #	-lcrypt
+
+LEXLIB		=	@LEXLIB@ #		-ll or -lfl for flex
+
+#	Terminal support
+LIBCURSES	=	@LIBCURSES@ #	-lcurses [-ltermcap]
+LIBTERMCAP	=	@LIBTERMCAP@ #	-ltermcap
+# LIBTERMINFO?
+
+#   XCB
+LIBXCB_CORE   =   @LIBXCB_CORE@ #    -lxcb
+LIBXCB_RENDER =   @LIBXCB_RENDER@ #  -lxcb-render
+LIBXCB_GLX    =   @LIBXCB_GLX@ #     -lxcb-glx
+LIBXCB        =   @LIBXCB@ #  -lxcb-glx -lxcb-render -lxcb
+
+LIBX11_XCB    =   @LIBX11_XCB@ # -lX11-xcb
+
+#	Xlibs: X11 Xau Xaw Xext Xinput Xmu Xol Xt
+#	Xm Xirisw Xt Xmu gl Xi Xext X11 -- # SGI order (but no more old GL, ever)
+#	-lGLw -lGLU -lGL -lXm -lXaw -lXmu -lXt -lXext -lX11 -limage
+#	Collection: $(LIBX) - reason: convenience
+LIBX11		=	@LIBX11@ #		-lX11
+LIBXEXT		=	@LIBXEXT@ #		-lXext
+LIBXT		=	@LIBXT@ #		-lXt
+LIBSM		=	@LIBSM@ #		-lSM
+LIBICE		=	@LIBICE@ #		-lICE
+LIBXMU		=	@LIBXMU@ #		-lXmu
+LIBX		=	@LIBX@ #		-lXmu -lICE -lSM -lXt -lXext -lX11
+
+LIBXI		=	@LIBXI@ #		-lXi
+LIBXAU		=	@LIBXAU@ #		-lXau
+LIBXAW		=	@LIBXAW@ #		-lXaw
+LIBXM		=	@LIBXM@ #		-lXm
+LIBXTST     =   @LIBXTST@ #		-lXtst
+
+#	Collection: $(LIBGLUT) - reason: support libs may differ by architecture
+LIBIRISGL   =   @LIBIRISGL@ #   -lgl (or perhaps -lgl_s ?)
+LIBGLTK		=	@LIBGLTK@ #		-lgltk
+LIBGLW		=   @LIBGLW@ #		-lGLw
+LIBGLU 		=	@LIBGLU@ #		-lGLU -lGL
+LIBGL		=	@LIBGL@ #		-lGL 
+LIBGLUT		=	@LIBGLUT@ #		-lglut -Xi -lGLU -lGL
+
+LIBS		=	@LIBS@
+
+YACC		=	@YACC@ #		 bison -y
+XMKMF		=	@XMKMF@
+ARFLAGS		=	cuvs
+RANLIB		=	@RANLIB@
+COMPILE.snf	=	@BDFTOSNF@
+COMPILE.pcf	=	@BDFTOPCF@
+COMPILE.fb	=	@CONVERTFONT@
+COMPILE.tex	=	@LATEX@
+TEXI2DVI	=	@TEXI2DVI@
+MAKEINFO	=	@MAKEINFO@
+
+#	Java support
+JAVAC		=	@JAVAC@
+JAVA		=	@JAVA@
+JAVAFLAGS	=	
+COMPILE.java = $(JAVAC) $(JAVAFLAGS)
+
+#	the following compress commands should work as filters
+COMPRESS	=	@COMPRESS@
+UNCOMPRESS	=	@UNCOMPRESS@
+COMPRESS_SUFFIX	=	@COMPRESS_SUFFIX@
+
+TAR			=	@TAR@
+AWK			=	@AWK@
+RM			=	rm -f
+RMDIR		=	rmdir
+MV			=	mv -f
+MVDIR		=	mv -f
+CP			=	cp
+LN			=	ln
+CPDIR		=	cp -r
+STRIP		=	strip
+
+CO			=	co
+CI			=	ci
+
+INSTALL		=	install
+INSTALL_PROGRAM	=	$(INSTALL)
+INSTALL_PROGRAM_STRIPPED =	$(INSTALL_PROGRAM) -s
+INSTALL_SCRIPT	=	$(INSTALL)
+INSTALL_DATA	=	$(INSTALL) -m 644
+INSTALL_MAN		=	$(INSTALL) -m 644
+INSTALL_INFO	=	@INSTALL_INFO@
+CHMOD		=	chmod
+CHOWN		=	chown
+CHGRP		=	chgrp
+
+TAPE		=	/dev/rst0
+DISK		=	/dev/rfd0
+
+#------------------------------------------------------------- Rules
+# 
+# SUBDIRS_BUILDABLE = \
+# 	$(filter-out RCS/ CVS/ Hold/ , \
+# 		$(dir $(foreach dir,$(subst /.,,$(wildcard */.)),\
+# 				  $(firstword $(wildcard $(dir)/GNUmakefile) \
+# 							  $(wildcard $(dir)/Makefile) \
+# 							  $(wildcard $(dir)/makefile) \
+# 							  $(wildcard $(dir)/configure) \
+# 							  $(wildcard $(dir)/configure.ac) \
+# 							  $(wildcard $(dir)/Imakefile) \
+# 		))))
+
+SUBDIRS_BUILDABLE := \
+	$(filter-out RCS CVS Hold , \
+		$(dir $(foreach dir,\
+				$(subst ./,,\
+				  $(shell find . -name '.*' -o -type d -prune -print)),\
+				$(firstword $(wildcard $(dir)/GNUmakefile) \
+							$(wildcard $(dir)/Makefile) \
+							$(wildcard $(dir)/makefile) \
+							$(wildcard $(dir)/configure) \
+							$(wildcard $(dir)/configure.ac) \
+							$(wildcard $(dir)/Imakefile) \
+		))))
+
+# C Compiler flag settings for members of RECURSORS_BUILDERS_WITH_CCF
+normal     : CCMODEFLAGS = $(CCNormal)
+paranoid   : CCMODEFLAGS = $(CCParanoid)
+neurotic   : CCMODEFLAGS = $(CCNeurotic)
+fascist    : CCMODEFLAGS = $(CCFascist)
+profile    : CCMODEFLAGS = $(CCProfile)
+debug      : CCMODEFLAGS = $(CCDebug)
+optimize   : CCMODEFLAGS = $(CCOptimize)
+optimise   : CCMODEFLAGS = $(CCOptimize)
+all archive shlib objects assembly preprocess binge : CCMODEFLAGS = $(CCParanoid)
+install install-strip : CCMODEFLAGS = $(CCOptimize)
+
+# Install settings
+install-strip : INSTALL_PROGRAM += -s
+
+all        :: sprawl $(ARCHIVE) $(PROGS) $(PROG)
+
+$(RECURSORS_BUILDERS_NO_CCF) $(RECURSORS_BUILDLESS) :: sprawl
+
+normal paranoid neurotic fascist profile debug optimize optimise :: \
+              sprawl $(ARCHIVE) $(PROGS) $(PROG)
+archive    :: sprawl $(ARCHIVE)
+shlib      :: sprawl $(SHLIB)
+objects    :: sprawl $(OBJS)
+assembly   :: sprawl $(ASMS)
+preprocess :: sprawl $(PPRS)
+binge      :: sprawl $(PPRS) $(ASMS) $(OBJS) $(PROG) $(PROGS) $(ARCHIVE)
+install install-strip :: sprawl pre-install normal-install post-install
+
+
+PWD = $(patsubst $(HOME)%,~%,$(shell pwd | sed 's|^/[.]automount||;s|^/tmp_mnt/||'))
+sprawl : sprawl-pre sprawl-normal sprawl-post
+go     :     go-pre     go-normal     go-post
+
+sprawl-pre:
+#	@echo '['"$(MAKELEVEL) $(MAKECMDGOALS)/$@ $(PWD)"' {$(CCMODEFLAGS)|$(TARGETS)}]'
+	@echo '['"$(MAKELEVEL) $(MAKECMDGOALS) $(PWD)"' ]'
+sprawl-normal : $(addsuffix .recurse, $(SUBDIRS_BUILDABLE))
+#	@echo '['"$(MAKELEVEL)2 $(MAKECMDGOALS)/$@ $(PWD)"' {$(CCMODEFLAGS)|$(TARGETS)}]'
+#	@echo 'dependencies: $^'
+sprawl-post:
+#	@echo '['"$(MAKELEVEL)3 $(MAKECMDGOALS)/$@ $(PWD)"' {$(CCMODEFLAGS)|$(TARGETS)}]'
+go-pre: sprawl
+#	@echo '['"$(MAKELEVEL)4 $(MAKECMDGOALS)/$@ $(PWD)"' {$(CCMODEFLAGS)|$(TARGETS)}]'
+go-normal : $(TARGETS)
+#	@echo '['"$(MAKELEVEL)5 $(MAKECMDGOALS)/$@ $(PWD)"' {$(CCMODEFLAGS)|$(TARGETS)}]'
+#	@echo '['"$(MAKELEVEL) $(TARGETS) | $^ $(PWD)"']'
+#	@if [ -n "$(strip $(TARGETS))" ] ; then $(MAKE) CCMODEFLAGS='$(CCMODEFLAGS)' $(TARGETS) | $(INDENT_FILTER) ; else : ; fi
+go-post:
+#	@echo '['"$(MAKELEVEL)6 $(MAKECMDGOALS)/$@ $(PWD)"' {$(CCMODEFLAGS)|$(TARGETS)}]'
+
+%.recurse : %/GNUmakefile
+	@( if cd $(dir $@) >/dev/null ; then \
+		$(MAKE) $(MAKECMDGOALS) 2>&1 | $(INDENT_FILTER) ; \
+	else echo could not cd to $(dir $@) ; \
+	fi )
+
+%.recurse : %/Makefile
+	@( if cd $(dir $@) >/dev/null ; then \
+		$(MAKE) $(MAKECMDGOALS) 2>&1 | $(INDENT_FILTER) ; \
+	else echo could not cd to $(dir $@) ; \
+	fi )
+
+%/configure : %/configure.ac
+	( cd $(dir $@) && autoconf; }
+
+%/GNUmakefile : %/GNUmakefile.in %/configure
+	( cd $(dir $@) && \
+	  ./configure --config-cache \
+				  --prefix='$$$${HOME}'/pod \
+				  --exec-prefix='$$$${HOME}'/pod/abi/'$$$${ARCH}' )
+
+%/GNUmakefile : %/Imakefile
+	if [ -z $(XMKMF) ] ; then \
+		( if cd $(dir $@) ; then \
+			$(XMKMF) && $(MAKE) Makefiles ; \
+		  fi ; ) ; \
+	else '[XMKMF unavailable]' ;\
+	fi
+
+#===================================================== end of TRAVERSAL
+#	DEST*/%: % -- added Sun Jul 26 14:25:06 GMT 1992
+#	presumption:  modes propagated to targets.
+
+#	2003-12-17 13:46:15 CST (Dec Wed) first use of define/endef sequences
+#	Note: in make 3.79, control of output, @, in define/endef is unreliable
+define ensure_directory_exists
+  @dirck () { \
+    if [ ! -d $$1 ] ; then \
+		dirck $${1%/*} ; \
+		mkdir $$1 && echo '[created' $$1 ']' ; \
+	fi ; \
+  }; \
+  dir=$@ ; dirck $${dir%/*}
+endef
+define ensure_directory_exists_and_clear_target
+  $(ensure_directory_exists)
+  @if [ -r $@ ]; then $(RM) $@ ; fi
+endef
+
+# - read only architecture-specific
+
+$(DESTBIN)/% : %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_PROGRAM) $< $@
+
+$(DESTSBIN)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_PROGRAM) $< $@
+
+$(DESTLIBEXEC)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_PROGRAM) $< $@
+
+$(DESTLIB)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+	@case $< in lib*.a) $(RANLIB) $@ ;; esac
+
+# - read only host-specific
+
+$(DESTCONFSYS)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+$(DESTSTATE)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+# - read/write shared
+
+$(DESTSTATESH)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+# - read only shared
+
+$(DESTDATA)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+$(DESTLISP)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+$(DESTINC)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+$(DESTBINSH)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_SCRIPT) $< $@
+
+# - read only shared - these three are not part of the GNU variable set
+
+$(DESTCONF)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+$(DESTDIST)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+$(DESTDOC)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+# - read only shared (documentation)
+
+$(DESTINFO)/%: %
+	$(ensure_directory_exists_and_clear_target)
+	$(INSTALL_DATA) $< $@
+
+ifeq (1,1)
+# NOTE: Designed for a target like:  $(DESTMAN)/man1/cmd.1
+#        which will look for ./man1/cmd.1 automatically as a source
+#       One -could- use $(DESTMAN1)/cmd.$(MAN1EXT), if you generated
+#        cmd's manual at ./man1/cmd.$(MAN1EXT), but notice how some
+#        hacking will be required to extract the "man1" from $(DESTMAN1)
+#        before doing a nontrivial patsubst to get its name under .
+$(DESTMAN)/%: %
+	$(ensure_directory_exists)
+	@dir=$(patsubst %/,%,$(dir $@)); if [ ! -d $$dir ]; then mkdir $$dir; fi
+	@if [ -r $@ ]; then $(RM) $@ ; fi
+	$(INSTALL_DATA) $< $@
+else
+# An alternative is to put the manpage source in with the code.
+#        We want to assume that manual pages are shareable, and host-
+#        and OS-independent, and that the build infrastructure will
+#        transparently arrange for compression if needed
+$(DESTMAN1)/%.$(MAN1EXT): %.man
+	@dir=$(patsubst %/,%,$(dir $@)); if [ ! -d $$dir ]; then mkdir $$dir; fi
+	@if [ -r $@ ]; then $(RM) $@ ; fi
+	@: do OS conversions, etc. here.
+	$(INSTALL_DATA) $< $@
+#... put the other 7 here
+#        generate the page to install to include the system details of
+#        compressed or not based on (for example) $(MAN1EXT), then
+#        use the rule of $(DESTMAN1)/%.$(MAN1EXT): %.$(MAN1EXT)
+#        for a target of $(DESTMAN1)/cmd.$(MAN1EXT)
+# This would apparently require an explicit rule for each manual section.
+# The developer should NOT have to write rules to handle this OS dependency.
+#
+$(DESTMAN1)/%.$(MAN1EXT): %.$(MAN1EXT)
+	@dir=$(patsubst %/,%,$(dir $@)); if [ ! -d $$dir ]; then mkdir $$dir; fi
+	@if [ -r $@ ]; then $(RM) $@ ; fi
+	$(INSTALL_DATA) $< $@
+#... put the other 7 here
+endif
+
+#------------------------------------------------------------- Rules
+
+OUTPUT_OPTION = -o $@
+
+#	The following could be simply:  mkdirhier $*, or mkdir -p $*
+#	This rule is masked by the $(DEST___)/%:% rules.
+%/. ::
+	@dirck () { \
+		if [ ! -d $$1 ] ; then \
+			if dirck `dirname $$1`; then \
+				if mkdir $$1; then \
+					echo "[created $$1]"; \
+				fi; \
+			fi; \
+		fi; \
+    }; \
+	dirck $(patsubst %/,%,$*)
+
+#	$(LEX.l) $< > $*.l.c
+#	$(COMPILE.c) -c -o $@ $*.l.c
+#	[ -r $*.l.c ] && $(RM) $*.l.c
+
+%.o : %.l
+	$(LEX.l) $< | $(COMPILE.c) -c -o $@ -x c - $(LEXLIB)
+
+#	$(LEX.l) $< > $*.l.c
+#	$(COMPILE.c) -o $@ $*.l.c $(LEXLIB)
+#	[ -r $*.l.c ] && $(RM) $*.l.c
+
+% : %.l
+	$(LEX.l) $< | $(COMPILE.c) -o $@ -x c - $(LEXLIB)
+
+# TeX/LaTeX notes: http://mintaka.sdsu.edu/GF/bibliog/latex/LaTeXtoPDF.html
+
+%.ps : %.dvi
+	dvi2ps -- < $< > $@
+
+%.dvi : %.tex
+	$(COMPILE.tex) $< 2>&1 | egrep -v '(10000|^$$)' ;
+
+%.pdf : %.ps
+	ps2pdf $< > $@
+
+%.pdf : %.tex
+	pdflatex $< > $@
+
+%.dvi : %.texi
+	$(TEXI2DVI) $<
+
+%.pcf : %.bdf
+	$(COMPILE.pcf) -o $@ $<
+
+%.snf : %.bdf
+	$(COMPILE.snf) < $< > $@
+
+%.fb : %.bdf
+	$(COMPILE.fb) -o $* $<
+
+%.info : %.texi
+	$(MAKEINFO) $<
+
+%.o : %.c
+	$(COMPILE.c) -c $(OUTPUT_OPTION) $<
+
+%.s : %.c
+	$(COMPILE.c) -S $(OUTPUT_OPTION) $<
+
+%.i : %.c
+	$(COMPILE.c) -E $(OUTPUT_OPTION) $<
+
+%.o : %.s
+	$(COMPILE.c) -c $(OUTPUT_OPTION) $<
+
+%.a : %.o
+	$(AR) $(ARFLAGS)r $@ $^
+
+%.so : %.a
+	$(LD_SHLIB) -shared --whole-archive -o $@ $^
+
+#----------------------------------------------------- Program {
+# if any of the suffixes is ".oo", use $(LINK.cxx)
+
+ifneq ($(strip $(OBJS)),)
+LINKPROG = $(if $(filter %.oo, $(OBJS)), $(LINK.cxx), $(LINK.c))
+$(PROG): $(OBJS) $(ARCHIVE)
+	$(LINKPROG) $(OUTPUT_OPTION) $(OBJS) $(LDLIBS)
+else
+LINKPROG = $(if $(filter %.cc, $(OBJS)), $(LINK.cxx), $(LINK.c))
+$(PROG): $(SRCS)
+endif
+#------------------------------------------------------------- }
+
+% : %.s $(ARCHIVE)
+	$(COMPILE.c) $(OUTPUT_OPTION) $^ $(LDLIBS)
+
+% : %.o $(ARCHIVE)
+	$(LINK.c) $(OUTPUT_OPTION) $^ $(LDLIBS)
+
+% : %.c $(ARCHIVE)
+	$(COMPILE.c) $(LDFLAGS) $(OUTPUT_OPTION) $^ $(LDLIBS)
+
+%.class : %.java
+	$(COMPILE.java) $^
+
+%.t : %.c $(ARCHIVE)
+	$(COMPILE.c) -O $(CCParanoid) $(LDFLAGS) -DTEST $(OUTPUT_OPTION) $^ $(LDLIBS)
+
+# | sed '\''s@^\(.*\)[.]o *: *@\1.d &@'\'' > $@'
+$(DEPSDIR)/%.d : %.c
+	@echo 'Depending (C):' $< '->' $@ ; \
+	 [ -d $(DEPSDIR) ] || mkdir $(DEPSDIR) ; \
+	 $(SHELL) -ec '$(CC) $(DEPENDFLAGS) $(CPPFLAGS) $< \
+		| sed '\''s@^\(.*\)[.]o *: *@\1.d $(ARCHIVE)(\1.o) & @'\'' > $@'
+
+#	I miss the .c++ and .h++ of the early 1990s.
+ifndef CXXEXT_C
+CXXEXT_C	= cc
+endif
+ifndef CXXEXT_H
+CXXEXT_H	= hh
+endif
+
+%.$(CXXEXT_C) :
+
+#%.o : %.$(CXXEXT_C)
+#	$(COMPILE.cxx) -c $(OUTPUT_OPTION) $<
+
+%.oo : %.$(CXXEXT_C)
+	$(COMPILE.cxx) -c $(OUTPUT_OPTION) $<
+
+%.ss : %.$(CXXEXT_C)
+	$(COMPILE.cxx) -S $(OUTPUT_OPTION) $<
+
+%.ii : %.$(CXXEXT_C)
+	$(COMPILE.cxx) -E $(OUTPUT_OPTION) $<
+
+% : %.$(CXXEXT_C)
+	$(COMPILE.cxx) $(LDFLAGS) $(OUTPUT_OPTION) $^ $(LDLIBS)
+
+%.t : %.$(CXXEXT_C) $(ARCHIVE)
+	$(COMPILE.cxx) -O $(CCParanoid)  $(LDFLAGS) -DTEST $(OUTPUT_OPTION) $^ $(LDLIBS)
+
+# | sed '\''s@^\(.*\)[.]o *: *@\1.d &@'\'' > $@'
+$(DEPSDIR)/%.d : %.$(CXXEXT_C)
+@echo 'Depending (C++):' $< '->' $@ ; \
+	 [ -d $(DEPSDIR) ] || mkdir $(DEPSDIR) ; \
+	 $(SHELL) -ec '$(CC) $(DEPENDFLAGS) $(CPPFLAGS) $< \
+		| sed '\''s@^\(.*\)[.]o *: *@\1.d $(ARCHIVE)(\1.o) & @'\'' > $@'
+
+#--------------------------------------------------------- Intermediates
+
+#	X (in)compatibility - obsolete target
+lint lint1::
+	@echo $(THISFILE): requested target \"$@\" not supported.
+
+#------------------------------------------------------------ Archives
+
+CCSHLIB_FLAGS = -DARCHIVE -fPIC
+
+(%.o): %.$(CXXEXT_C)
+	$(COMPILE.cxx) $(CCSHLIB_FLAGS) -c -o $% $<
+	$(AR) $(ARFLAGS)r $@ $%
+	@$(RM) $%
+
+(%.o): %.c
+	$(COMPILE.c) $(CCSHLIB_FLAGS) -c -o $% $<
+	$(AR) $(ARFLAGS)r $@ $%
+	@$(RM) $%
+
+$(ARCHIVE): $(MEMARCH)
+	@$(RANLIB) $(ARCHIVE)
+
+archive :: $(ARCHIVE)
+
+#	a problem:  .so archives need different flags (and not gcc?)
+#               may need to create a different extension.
+#   more probs: on INSTALL, ".so", ".so.1" (for example) omitted for ".so.1.1"
+#	compilation:	(old -pic) new: -fPIC
+#	link-editor:	-assert pure-text
+#	HAH!  we build them straight from the .a
+#	$(LD) -o $@ -assert pure-text
+#	Variables
+#	SHLIB	  the simple name of the shlib, with major and version numbers
+#   SHLIB_LD  the linker to use, probably $(CC) or $(CXX) for now
+#             using $(LD_REAL) used to work, but doesn't anymore (~2006/7)
+ifdef SHLIB
+# SHLIB = library.so.1.0
+SHLIB_LD = $(CC)
+SHLIB_WITH_MAJOR = $(basename $(SHLIB))
+SHLIB_NO_VERSION = $(basename $(basename $(SHLIB)))
+SHLIB_TOKENS  = $(subst ., ,$(SHLIB))
+SHLIB_TOKENS2 = $(subst ., ,$(SHLIB_WITH_MAJOR))
+SHLIB_MAJOR	  = $(word $(words $(SHLIB_TOKENS)),$(SHLIB_TOKENS))
+SHLIB_MINOR	  = $(word $(words $(SHLIB_TOKENS2)),$(SHLIB_TOKENS2))
+# Note: SHLIB_LIBS critical to allow linking against $(SHLIB)'s dependencies
+#	$(LD_SHLIB) -fPIC --shared --soname $(SHLIB_WITH_MAJOR) -o $(SHLIB) \
+#		--whole-archive $(ARCHIVE) \
+#		--no-whole-archive $(SHLIB_LIBS) ; \
+#	$(CC) -Wl,--shared -Wl,--soname,$(SHLIB_WITH_MAJOR) -o $(SHLIB) \
+#		-Wl,--whole-archive $(ARCHIVE) \
+#		-Wl,--no-whole-archive $(SHLIB_LIBS) ; \
+
+$(SHLIB) :: $(ARCHIVE)
+	set -x ; \
+	$(SHLIB_LD) -fPIC --shared \
+		-Wl,-soname,$(SHLIB_WITH_MAJOR) -o $(SHLIB) \
+		-Wl,-whole-archive $(ARCHIVE) \
+		-Wl,-no-whole-archive $(SHLIB_LIBS) ; \
+	[ -r $(SHLIB_WITH_MAJOR) ] || ln -s $(SHLIB) $(SHLIB_WITH_MAJOR) ; \
+	[ -r $(SHLIB_NO_VERSION) ] || ln -s $(SHLIB) $(SHLIB_NO_VERSION) ; \
+	: check ldconfig
+shlib :: $(SHLIB)
+endif	# SHLIB
+
+#FAILED: $(CC) -fPIC -Wl,-shared -Wl,-whole-archive -Wl,-soname,$(SHLIB_WITH_MAJOR) ; -Wl,-no-whole-archive \
+#HELPS -fPIC helps with finding references to symbols in library
+#	$(LD_SHLIB) -pic -shared -soname $(SHLIB_WITH_MAJOR) -o $(SHLIB) -whole-archive $(ARCHIVE) -no-whole-archive ; \
+#	case "`gcc -dumpversion`" in \
+#	4.*) \
+#		$(CC) -fPIC -Wl,-shared -Wl,-whole-archive -Wl,-soname,$(SHLIB_WITH_MAJOR) \
+#			-o $(SHLIB) $(ARCHIVE) -Wl,-no-whole-archive;; \
+#	*) \
+#		$(LD_SHLIB) -shared --whole-archive -soname $(SHLIB_WITH_MAJOR) \
+#			-o $(SHLIB) $(ARCHIVE) ;; \
+#	esac ; \
+#
+#-------------------------------------------------------------------CVS
+
+cvscommit ::
+	cvs commit .
+
+cvsupdate ::
+	cvs update .
+
+cvsdiff ::
+	cvs diff .
+
+ifdef CVSPROJECT
+cvsimport ::
+	cvs -m 'initial import' -d import $(CVSPROJECT)
+endif
+
+#--------------------------------------------------------------- Dependencies
+# depend:: rcspull $(MAKEFILE) rcspush
+
+depend :: $(DEPS)
+
+undepend ::
+	@$(RM) -rf $(DEPSDIR)
+
+#	X11, InterViews
+Makefile Makefiles ::
+	@echo $(THISFILE): requested target \"$@\" not supported, obsolete
+
+#	Only build dependencies if we're building some TARGETS...
+#	This way "make pure" won't stupidly create .depend, then remove it.
+ifeq ($(MAKECMDGOALS),$(findstring $(MAKECMDGOALS),$(BUILDERS)))
+-include $(DEPS)
+endif
+
+#-------------------------------------------------------------- TAGS Tables
+
+tags :: TAGS
+
+# GNU
+TAGS ::
+	etags --typedefs-and-c++ --members --include=$$HOME/pod/Lib/TAGS \
+	 --output=$@ $(ALLSRCS)
+
+#-------------------------------------------------------------- info files
+
+# GNU - generate .info files from .texi files using makeinfo
+info :: $(INFO)
+
+#-------------------------------------------------------------- DVI docs
+
+# GNU - generate .dvi files from .texi files using texi2dvi
+dvi :: $(DVI)
+
+#------------------------------------------------------- regression testing
+
+#	Although used in some directories, this facility needs to be expanded
+#	to have a list of REGRESSORS to run, each of which should return a
+#	zero exit status on success.
+
+# Execute the module compiled tests (*.t files)
+ifdef TESTS
+tests :: $(TESTS)
+test :: all tests
+	@testoutdir=.tests ; \
+	[ -d $$testoutdir ] || mkdir $$testoutdir ; \
+	[ -d $$testoutdir ] || \
+		{ echo "could not create $$testoutdir." 1>&2 ; exit 1 ; } ; \
+	for test in $(TESTS) ; do \
+		echo Running test "$$test"... | tr -d '\012' ; \
+		if ./"$$test" \
+			>$$testoutdir/$$test.out 2>$$testoutdir/$$test.out ; then \
+			echo ' succeeded.' ; \
+		else \
+			echo " failed." ; exit 10 ; \
+		fi ; \
+	done
+else
+test ::
+endif
+
+# GNU - check of built (but not the installed) program
+ifdef CHECKS
+checks :: $(CHECKS)
+check :: all checks
+	@for check in $(CHECKS) ; do \
+		echo Running check "$$check"... | tr -d '\012' ; \
+		if PROG=./$(PROG) "$$check" \
+			3<&1 1>$$check.out 2>$$check.err ; then \
+			if [ -r $$check.out.good ] ; then \
+				if diff $$check.out.good $$check.out ; then \
+					$(RM) $$check.out ; \
+				else \
+					echo "ERROR: contradicts $$check.out.good" 1>&2 ; \
+					exit 21 ; \
+				fi ; \
+			fi ; \
+			if [ -r $$check.err.good ] ; then \
+				if diff $$check.err.good $$check.err ; then \
+					$(RM) $$check.err ; \
+				else \
+					echo "ERROR: contradicts $$check.err.good" 1>&2 ; \
+					exit 22 ; \
+				fi ; \
+			fi ; \
+			echo ' succeeded.' ; \
+		else \
+			echo " failed." ; exit 20 ; \
+		fi ; \
+	done
+else
+check ::
+endif
+
+# GNU - installcheck of built (but not the installed) program
+ifdef INSTALLCHECKS
+installchecks :: $(INSTALLCHECKS)
+installcheck :: all installchecks
+	@for installcheck in $(INSTALLCHECKS) ; do \
+		echo Running installcheck "$$installcheck"... | tr -d '\012' ; \
+		if PROG=$(DESTBIN)/$(PROG) "$$installcheck" \
+			1>$$installcheck.out 2>$$installcheck.err ; then \
+			if [ -r $$installcheck.out.good ] ; then \
+				if diff $$installcheck.out.good $$installcheck.out ; then \
+					$(RM) $$installcheck.out ; \
+				else \
+					echo "ERROR: contradicts $$installcheck.out.good" 1>&2 ; \
+					exit 31 ; \
+				fi ; \
+			fi ; \
+			if [ -r $$installcheck.err.good ] ; then \
+				if diff $$installcheck.err.good $$installcheck.err ; then \
+					$(RM) $$installcheck.err ; \
+				else \
+					echo "ERROR: contradicts $$installcheck.err.good" 1>&2 ; \
+					exit 32 ; \
+				fi ; \
+			fi ; \
+			echo ' succeeded.' ; \
+		else \
+			echo " failed." ; exit 30 ; \
+		fi ; \
+	done
+else
+installcheck ::
+endif
+
+#-------------------------a clean desk is the sign of a sick mind-------- :-)
+
+NULL2	:=	2>/dev/null
+
+# remove byproducts of normal development, editing, testing, and profiling
+kempt :: kempt_aux
+kempt_aux :: 
+	$(foreach file, \
+		$(wildcard *.BAK *.bak \,* .*~ *~ make.log core errs mon.out gmon.out), \
+		$(RM) $(file); \
+	)
+
+# remove products of make, except for final targets like libraries and programs
+tidy :: tidy_aux 
+tidy_aux :: kempt_aux
+	$(foreach file, \
+		$(wildcard $(PPRS) $(ASMS) $(OBJS) TAGS .make.state make.tar), \
+		$(RM) $(file); \
+	)
+
+# remove products of make, except for state info, deps, expensive library targets
+clean :: clean_aux
+clean_aux :: tidy_aux
+	$(if $(wildcard $(PROG) $(PROGS)), $(RM) $(PROG) $(PROGS) ;)
+
+# POSSIBLE TARGET NAMES FOR MAJOR CLEANUP: unmake, unconfigure, unautoconf
+
+# remove products of make
+pure :: pure_aux
+pure_aux :: clean_aux
+	$(if $(wildcard $(DEPSDIR)),            $(RM) -r $(DEPSDIR) 		 ;)
+	$(if $(wildcard $(ARCHIVE)),            $(RM)    $(ARCHIVE) 		 ;)
+	$(if $(wildcard $(SHLIB)),              $(RM)    $(SHLIB)   		 ;)
+	$(if $(wildcard $(SHLIB_WITH_MAJOR)),   $(RM)    $(SHLIB_WITH_MAJOR) ;)
+	$(if $(wildcard $(SHLIB_NO_VERSION)),   $(RM)    $(SHLIB_NO_VERSION) ;)
+
+# remove products of ./configure (toss all $ARCH deps) - WARNING: disables "make"
+pristine :: pristine_aux
+pristine_aux :: pure_aux
+	$(if $(wildcard configure configure.ac),                        \
+		$(if $(wildcard GNUmakecore.in),                         	\
+			 $(if $(wildcard GNUmakecore), $(RM) GNUmakecore ;)) 	\
+		$(if $(wildcard GNUmakefile.in),                         	\
+			 $(if $(wildcard GNUmakefile), $(RM) GNUmakefile ;)) 	\
+		$(if $(wildcard Makefile.in),                            	\
+			 $(if $(wildcard Makefile),    $(RM) Makefile ;))    	\
+		$(if $(wildcard config.h.in),                            	\
+			 $(if $(wildcard config.h.in), $(RM) config.h ;))		\
+		$(if $(wildcard config.status),    $(RM) config.status ;)	\
+		$(if $(wildcard config.cache),     $(RM) config.cache ;)	\
+		$(if $(wildcard config.log),       $(RM) config.log ;)		\
+	)
+
+# remove products of autoconf and autoheader - WARNING: disables ./configure
+# we can add the removal of config.h.in if configure.ac has AH_TOP
+scoured :: scoured_aux
+scoured_aux :: pristine_aux
+	$(if $(wildcard configure.ac),                               	\
+		$(if $(wildcard configure),      $(RM)    configure ;)      \
+		$(if $(wildcard autom4te.cache), $(RM) -r autom4te.cache ;) \
+	)
+
+#	GNU - remove almost everything except for expensive targets (libs, etc.)
+mostlyclean:: clean
+
+#	GNU - remove everything built by running make
+distclean::	pure
+
+#	GNU - remove everything rebuildable except ./configure and its support
+#	however, in my model, ./configure will only appear inside a projects
+#	directory if it's been extracted from a dist tarfile.
+maintainer-clean:: pristine
+
+#------------------------------------------------------------- Installations
+
+# "destdirs" is no longer used as a prereq, since install rules check for
+# target directories themselves.
+destdirs : # $(DESTDIRS)
+	@for dir in $(DESTDIRS) ; do \
+		if [ ! -d $$dir ]; then \
+			if mkdir -p $$dir; then \
+				echo "[created $$1]"; \
+			fi; \
+		fi ; \
+	done
+
+#	GNU
+installdirs : destdirs
+
+#	Stuff that needs to be installed to finish the conventional (noninstalled)
+#	build of everything else.
+
+#	GNU see info (make)Install Command Categories (2003: the example is broken)
+pre-install ::
+normal-install :: $(INSTALLS)
+post-install ::
+
+pre-uninstall ::
+normal-uninstall ::
+	@for f in $(INSTALLS) ; do if [ -f "$$f" ] ; then echo $(RM) "$$f" ; $(RM) "$$f" ; fi ; done
+post-uninstall ::
+uninstall :: pre-uninstall normal-uninstall post-uninstall
+
+#	X (in)compatibility - obsolete approach
+install.man includes ::
+	@echo $(THISFILE): requested target \"$@\" not supported, use \"install\"
+
+strip ::
+	-$(if $(wildcard $(PROG) $(PROGS)),strip $(wildcard $(PROG) $(PROGS)) $(NULL2);,)
+
+paper ::
+	enscript -G -fTimes-Roman10 $(MAKEFILE)
+	vgrind -lc -t -w -h "$(PROG)$(ARCHIVE)" $(SRCS) *.h | pscat | lpr
+
+doc::
+ifdef DOCS
+	for file in $(DOCS) ; do \
+		expand -4 $$file | lpr ; \
+	done
+endif
+
+#	Creating distribution files.
+#	DISTLINK is the equivalent of "latest"
+DISTNICK = $(shell basename `pwd` | sed 's/[.][.0-9]*$$//')
+DISTVERS := $(if $(DISTVERS),$(DISTVERS),)
+# hyphen is only set if a version is used, 'link won't be made if matches 'dest
+DISTNAME = $(DISTNICK)$(if $(DISTVERS),-,)$(DISTVERS)
+DISTDEST = $(DISTNAME).tar.$(COMPRESS_SUFFIX)
+DISTLINK = $(DISTNICK).tar.$(COMPRESS_SUFFIX)
+DISTREAD = $(DISTNICK).README
+DISTCONF = $(shell echo $$HOME/pod/src/Config)
+# note: GNU tar's intrinsic gzip capability is required for now.
+
+DISTLIST = $(addprefix $(DISTNAME)/,$(ALLSRCS) $(DISTADDS) GNUmakefile)
+DISTADDS_DIR  = $(addprefix $(DISTNAME)/,$(shell for f in $(DISTADDS) ; do [ -d "$$f" ] && echo "$$f" ; done))
+DISTADDS_FILE = $(addprefix $(DISTNAME)/,$(shell for f in $(DISTADDS) ; do [ -d "$$f" ] && echo "$$f" ; done))
+# We probably want some autoconf environment files too, namely:
+DISTAUTO = $(addprefix $(DISTNAME)/, \
+			GNUmakecore.in config.h.in configure.ac configure)
+
+DISTCOMM = tar --verbose --gzip --create --file $(DESTDIST)/$(DISTDEST) \
+				--exclude=RCS --exclude=CVS --exclude=.git \
+				-C .dista $(DISTADDS_FILE) -h $(DISTLIST) $(DISTADD_DIR)\
+				-C ../.distb $(DISTAUTO)
+
+# dist:
+# create a tar.gz archive of this dir in the $(DESTDIST) directory
+# and copy the README into $(DESTDIST)/program.README, with some
+# additional information crammed into the header.
+
+# GNU
+dist ::
+	@\
+	[   -d .dista ] && rmdir .dista ; \
+	[   -d .distb ] && rmdir .distb ; \
+	[ ! -d .dista ] && mkdir .dista ; \
+	[ ! -d .distb ] && mkdir .distb ; \
+	if [ -d .dista -a -d .distb ] ; then \
+		$(LN) -s .. .dista/$(DISTNAME) ; \
+		$(LN) -s $(DISTCONF) .distb/$(DISTNAME) ; \
+		if [ -d .dista/$(DISTNAME)/. -a -d .distb/$(DISTNAME)/. ] ; then \
+			$(DISTCOMM) ; \
+		fi ; \
+		$(RM) .dista/$(DISTNAME) .distb/$(DISTNAME) ; \
+		$(RMDIR) .dista .distb ; \
+		if [ _"$(DISTDEST)" != _"$(DISTLINK)" ] ; then \
+			[ -f $(DESTDIST)/$(DISTLINK) ] && $(RM) $(DESTDIST)/$(DISTLINK) ; \
+			$(LN) -s $(DISTDEST) $(DESTDIST)/$(DISTLINK) ; \
+		fi ; \
+		if [ -r README ] ; then \
+			{ \
+				echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">' ; \
+				echo '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">' ; \
+				echo '<head>' ; \
+				echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />' ; \
+				echo '<title>'$(DISTNICK)'</title>' ; \
+				echo '</head>' ; \
+				echo '<body>' ; \
+				echo '<h1>'$(DISTNICK)'</h1>' ; \
+				echo '<p>' ; \
+				echo 'Package URI: <a href="'$(DISTLINK)'">'$(DISTLINK)'</a>' ;\
+				echo '<br/>' ; \
+				echo '[this is an export from a larger build environment]' ; \
+				echo '</p>' ; \
+				echo '' ; \
+				echo '<pre>' ; \
+				cat README | sed 's/\&/\&amp\;/g;s/[<]/\&lt\;/g;s/[>]/\&gt\;/g' ; \
+				echo '</pre>' ; \
+				echo '</body>' ; \
+				echo '</html>' ; \
+			} > $(DESTDIST)/$(DISTREAD).html ; \
+		fi ; \
+	fi
+
+undist ::
+	@if [ _"$(DISTDEST)" != _"$(DISTLINK)" ] ; then \
+		[ -f $(DESTDIST)/$(DISTLINK) ] && $(RM) $(DESTDIST)/$(DISTLINK) ; \
+	fi ; \
+	[ -f $(DESTDIST)/$(DISTDEST) ] && $(RM) $(DESTDIST)/$(DISTDEST) ; \
+	:
+
+telldist::
+	@echo '+---------------------------------------------------------telldist-'
+	@echo 'DESTDIST:    $(DESTDIST)'      ;\
+	 echo 'DISTNICK:    $(DISTNICK)'      ;\
+	 echo 'DISTVERS:    $(DISTVERS)'      ;\
+	 echo 'DISTNAME:    $(DISTNAME)'      ;\
+	 echo 'DISTDEST:    $(DISTDEST)'      ;\
+	 echo 'DISTLINK:    $(DISTLINK)'      ;\
+	 echo 'DISTLIST:    $(DISTLIST)'      ;\
+	 echo 'DISTADDS:    $(DISTADDS)'      ;\
+	 echo 'DISTAUTO:    $(DISTAUTO)'      ;\
+	 echo 'DISTCOMM:    $(DISTCOMM)'      ;\
+
+traverse ::
+	@:;
+
+du ::
+	@du -ks .
+
+status ::
+	wc $(MAKEFILE) $(ALLSRCS) 2>/dev/null
+
+help:: tellvers telldest tellmode tellvars
+
+tellvers::
+	@echo '+---------------------------------------------------------tellvers-'
+	@echo 'makefile : $(THISFILE)'	;\
+	 echo 'version  : $(VERSION)'	;\
+	 echo 'authors  : $(AUTHOR)'	;\
+	 echo 'group    : $(GROUP)'		;
+	@echo 'compiler version:'
+	@$(CC) $(CCVER_OPTS) 2>&1;
+	@echo 'loader/linker version:'
+	@$(LD) $(LDVER_OPTS) 2>&1;
+
+tellmode::
+	@echo '+---------------------------------------------------------tellmode-'
+	@/bin/echo -n 'compiling mode: '
+	@case "$(CCMODEFLAGS)" in *-g*)  mode="debug $$mode" ;;  esac ;	\
+	 case "$(CCMODEFLAGS)" in *-pg*) mode="profile $$mode" ;; esac ;	\
+	 case "$(CCMODEFLAGS)" in *-O*)  mode="optimize $$mode" ;; esac ;\
+	 case "$(CCMODEFLAGS)" in *-C*)  mode="comment $$mode" ;; esac ;\
+	 case "$(CCMODEFLAGS)" in *-d*)  mode="dump $$mode" ;; esac ;\
+	/bin/echo '>>' $${mode:=normal} '<<'
+
+tellvars::
+	@echo '+---------------------------------------------------------tellvars-'
+	@echo 'SUBDIRS_BUILDABLE: $(SUBDIRS_BUILDABLE)'      ;\
+	 echo 'CC:          $(CC)'      ;\
+	 echo 'CXX:         $(CXX)'     ;\
+	 echo 'CCFLAGS:     $(CCFLAGS)' ;\
+	 echo 'CCMODEFLAGS: $(CCMODEFLAGS)' ;\
+	 echo 'CXXFLAGS:    $(CXXFLAGS)' ;\
+	 echo 'CPPFLAGS:    $(CPPFLAGS)';\
+	 echo 'LD:          $(LD)'      ;\
+	 echo 'LDFLAGS:     $(LDFLAGS)' ;\
+	 echo 'LDLIBS:      $(LDLIBS)'  ;\
+	 echo 'LINK.c:      $(LINK.c)'  ;\
+	 echo 'LINK.cxx:    $(LINK.cxx)';\
+	 echo 'PROG:        $(PROG)'    ;\
+	 echo 'PROGS:       $(PROGS)'   ;\
+	 echo 'SRCS:        $(SRCS)'    ;\
+	 echo 'PPRS:        $(PPRS)'    ;\
+	 echo 'ASMS:        $(ASMS)'    ;\
+	 echo 'DEPS:        $(DEPS)'    ;\
+	 echo 'OBJS:        $(OBJS)'    ;\
+	 echo 'ARCHIVE:     $(ARCHIVE)'	;\
+	 echo 'SHLIB (all):	$(SHLIB)'   ;\
+	 echo 'SHLIB (tok):	$(SHLIB_TOKENS)'   ;\
+	 echo 'SHLIB (to2):	$(SHLIB_TOKENS2)'   ;\
+	 echo 'SHLIB (maj):	$(SHLIB_WITH_MAJOR)'   ;\
+	 echo 'SHLIB (bas):	$(SHLIB_NO_VERSION)'   ;\
+	 echo 'SHLIB (MAJ):	$(SHLIB_MINOR)'   ;\
+	 echo 'SHLIB (MIN):	$(SHLIB_MAJOR)'   ;\
+	 echo 'MEMSRCS:     $(MEMSRCS)' ;\
+	 echo 'MEMBERS:     $(MEMBERS)' ;\
+	 echo 'MEMDEPS:     $(MEMDEPS)' ;\
+	 echo 'MEMARCH:     $(MEMARCH)' ;\
+	 echo 'HEADERS:     $(HEADERS)' ;\
+	 echo 'ALLSRCS:     $(ALLSRCS)' ;\
+	 echo 'LIBCURSES:   $(LIBCURSES)' ;\
+	 echo 'LIBTALISMAN  $(LIBTALISMAN)' ; \
+	 echo 'LEXLIB:      $(LEXLIB)' ;\
+	 echo 'RANLIB:      $(RANLIB)'	;\
+	 echo 'RM:          $(RM)'      ;\
+	 echo 'RMDIR:       $(RMDIR)'   ;\
+	 echo 'XMKMF:       $(XMKMF)'   ;\
+	 echo 'TAPE:        $(TAPE)'    ;\
+	 echo 'DISK:        $(DISK)'    ;\
+	 echo 'ARCH:        $(ARCH)'    ;
+
+telldest::
+	@echo '+---------------------------------------------------------telldest-'
+	@echo 'CONFIG_H     $(CONFIG_H)'
+	@echo 'prefix       $(prefix)'
+	@echo 'exec_prefix  $(exec_prefix)'
+	@vars='$(DESTVARS)' ; dirs='$(DESTDIRS)' ; \
+	   while [ -n "$$vars" ] ; do \
+		if [ -z "$$dirs" ] ; then \
+	      echo 'ERROR: At least one target directory macro is missing' 1>&2 ; \
+	      break ; \
+		fi ; \
+		set $$vars ; v="$$1" ; shift ; vars="$$@" ; \
+		set $$dirs ; d="$$1" ; shift ; dirs="$$@" ; \
+		printf '%-12s %s\n' $$v $$d ; \
+	   done
+	@echo 'INSTALLS     $(INSTALLS)'
+
+#----------------------------------------------------------- Version History
+#   Version Gnu.29 2007-10-15 04:07:43 CDT (Oct Mon) PROGLINK autoadapt to c/c++
+#   Version Gnu.28 2006-10-10 01:48:46 CDT (Oct Tue) updates to shlib target
+#   Version Gnu.27 2003-12-21 14:17:27 CST (Dec Sun) rewrite to reduce sh use
+#	Version Gnu.26 2003-12-16 19:32:27 CST (Dec Tue) recurse to autoconfd dirs
+#	Version Gnu.25 2003-09-14 19:08:01 CDT (Sep Sun) major DEST* overhaul
+#   Version Gnu.24 2002-11-15 01:32:36 CST (Nov Fri) recurse not to dot-dirs.
+#   Version Gnu.24 2000-08-30 17:41:53 CDT (Aug Wed) add DESTSBIN
+#	Version Gnu.23 2000-03-23 02:06:28 CST (Mar Thu) add CXXEXT_C/CXXEXT_H
+#	Version Gnu.22 1999-09-28 02:41:51 CDT (Sep Tue) dependencies automated
+#	Version Gnu.21 1999-05-09 16:30:35 CDT (May Sun) added .o->.a, .a->.so
+#	Version Gnu.20 1999-02-25 01:18:51 CST (Feb Thu) overhaul of dist::
+#	Version Gnu.19 1998-05-25 01:13:56 CDT (May Mon) now using ./.depend/
+#	Version Gnu.18 Tue Nov 25 08:33:07 CST 1997 shlib support for Linix
+#	Version Gnu.17 Wed Oct 29 11:52:10 CST 1997 back to one file
+#	Version Gnu.16 Fri Apr 11 04:51:12 CDT 1997 add devel, DEVELS
+#	Version Gnu.15 Fri Sep 13 17:47:12 CDT 1996 added java support
+#	Version Gnu.14 Sat Aug 17 07:06:18 CDT 1996 mainloop cleanup
+#	Version Gnu.13 Fri Aug  9 21:17:18 CDT 1996 autoconfiscated
+#	Version Gnu.13 GNU Autoconfiscated.
+#	Version Gnu.12 Tue Nov 30 17:49:59 CST 1993
+#	Version Gnu.12 bug fixes inspired by Linux.
+#	Version Gnu.11 Sun Apr 11 19:54:53 CDT 1993"
+#	Version Gnu.11 crunched all recurse targets to one shell call.
+#	Version Gnu.10 Sat Mar 27 23:52:47 CST 1993
+#	Version Gnu.10 more work on auto-create of dirs.  fixing of man-installs.
+#	Version Gnu.9 Sun Jan 31 05:02:49 CST 1993"
+#	Version Gnu.9 major corrections to ensure_dir target.
+#	Version Gnu.8 Mon Dec  7 21:22:29 GMT 1992
+#	Version Gnu.8 added dist:: mostlyclean:: telldist::
+#	Version Gnu.7 Thu Nov  5 02:00:11 GMT 1992
+#	Version Gnu.7 added {kempt,tidy,clean,pure}_aux targets, 10.Gnu.7 -> Gnu.7
+#	Version 10.gnu.6 Tue Jul 28 06:40:42 GMT 1992"
+#	Version 10.gnu.6 added auto-install dependencies.
+#	Version 10.gnu.5 Di, 14 Jul 1992 09:38:00 GMT
+#	Version 10.gnu.5 added missing .c.t-variety rules with -DTEST
+#	Version 10.gnu.4 Mi, 08 Jul 1992 14:11:49 GMT"
+#	Version 10.gnu.4 multiple dependencies for ARCHIVE & PROG targets with ::
+#	Version 10.gnu.4 lex support extended with .l rule.   Merges from MIT.
+#	Version 10.gnu.3 Di, 07 Jul 1992 01:55:29 GMT"
+#	Version 10.gnu.3 -DBSD or -DUSG depending on <sys/time.h>  (crufty)
+#	Version 10.gnu.2 Fri Feb 07 03:35:13 CST 1992"
+#	Version 10.gnu.2 finished GNU specifics, RCS extract, HEADERS, archives.
+#	Version 10.gnu.1	Wed Feb 05 05:29:20 CST 1992"	[[GNUmakecore]]
+#	Version 10 Wed Dec 18 02:13:25 EST 1991"
+#	Version 10	added lex processing, documentation, default DEST* dirs.
+#	Version 9	Fri Dec 13 09:40:09 EST 1991"
+#	Version 9	redoing cascade, working on ranlib archives.
+#	Version 8	Thu Oct  3 06:58:00 CDT 1991"
+#	Version 7	Sun Mar  3 10:23:48 CST 1991"  [[MakefileCore]]
+#	Version 6	Tue Nov 13 21:27:23 CST 1990"
+#	Version 6	adding cascading install...(hopefully)
+#	Version 5	Thu Jul 12 02:56:03 CDT 1990"
+#	Version 5	C++, isolated depend, full subdirectory traversal
+#	Version 4	Mon Mar 19 09:14:32 CST 1990"
+#	Since version 4, traversal has been debugged, some optimization.
+#	Since version 3, doc has been added, two bugs have been removed.
+#	Version 3    Fri Mar 16 02:53:50 CST 1990" as  [[MakefileCore++]]
+#
+
+#-----------------------------------------------------------------------------
+#	Notes:
+#
+#	1.	The "-o $@" on .c and .c.o lines enables pathname use on targets,
+#			enabling segregation of objects in subdirectories, etc.
+#	2.	GNU gcc is the assumed compiler and link editor.
+#	3.	This config will build .o from .c, ignoring timestamps on .s files.
+#	4.	Depending is done automatically
+#
+#-----------------------------------------------------------------------------
+#	F i l e t y p e s   S u p p o r t e d
+#	-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#
+#	*/.    	automatic directory creation
+#	.c     	C or C++ files
+#	.cc    	C++ files   (I still miss using .c++ as the extension)
+#	.i     	preprocessed C files
+#	.ii    	preprocessed C++ files
+#	.s     	assembly output for C++
+#	.o     	object module from C++ compilation
+#	.a	   	archive/ranlib file
+#	.so     shared-object libraries
+#	(%.o)   library modules
+#	.class	JAVA class files
+#	.java	JAVA files
+#	.l	   	lex files
+#	.t		test executables derived from .c or .cc files
+#	.d		dependency files derived from .c or .cc files
+#	.ps    	PostScript derived from DVI
+#	.dvi   	DVI derived from TeX
+#	.tex
+#	.pcf   	PCF font format derived from BDF
+#	.bdf   	BDF font distribution format
+#	.snf   	SNF font formation as derived from BDF
+#	.fb		FB font forms as derived from BDF
+#	.info	GNU info files
+#	.texi	GNU texinfo source files
+#	
+#	U s e f u l   V a r i a b l e s   ( ``+''= no default) example makefile
+#	-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#
+#	#	The general form followed by GNUmakefile's using GNUmakecore
+#	#	(items in angle-brackets, `<...>', should be replaced appropriately
+#	#	CAVEAT --- SRCS, PROG, ARCHIVE, & MEMSRCS should precede the include
+#
+#	SRCS		=	<+	list of sources from which to build PROG>
+#	PROG		=	<+	target executable program, conflicts with PROGS>
+#	or PROGS    =   <+  target executable programs, instead of PROG and SRCS>
+#	ARCHIVE		=	<+	target archive to create>
+#	SHLIB       =   <+  target shared object library to create (with version)>
+#	MEMSRCS		=	<+	target archive's sources>
+#	INSTALLS	=	<+	full paths after installation (execs, docs, etc.) >
+#	DOCS		=	<+	documents>
+#
+#	$(PROGS) : % : %.c         <+ simplest supporting rule for PROGS>
+#
+#	include $(firstword $(GNUmakecore) GNUmakecore)
+#
+#	#	Note: distribution production is still in development
+#	#	specifically, the example following probably doesn't work :-)
+#	#	See the appropriate section above for more info
+#
+#	DISTNAME	=	<distribution name    - default: basename `pwd`>
+#	DISTVERS    =   <distribution version - default: 0.1.1>
+#
+#	#	Most if not all of the following variables may generally be omitted
+#
+#	CC			=	<compiler to use for C>
+#	CXX         =   <compiler to use for C++>
+#	CCFLAGS		=	<compiler flags for CC (and mostly for CXX) for the user >
+#	CCMODEFLAGS =	<compiler flags for CC (and mostly for CXX) for Make >
+#	CXXFLAGS	=	<compiler flags for CXX>
+#	CPPFLAGS	=	<compiler-preprocessing flags for CC and CXX>
+#
+#   #   Typically, the LIB* variables herein should be used in the LDLIBS var.
+#
+#	LD			=	<linker to use>
+#	LDFLAGS		=	<linker flags>
+#	LDLIBS		=	<linker library options>
+#
+#	#	All DEST* dependent on PREFIX - which defaults to $(HOME)
+#	#	thus any ovverrides must (currently) be explicit.
+#	#   This is a partial list, see the corresponding section above for more.
+#
+#	DESTBIN		=	<destination for user binaries>
+#	DESTBINSH	=	<destination for user sharable scripts, etc>
+#	DESTLIB		=	<destination for binary object archives, program modules>
+#	DESTLIBSH	=	<destination for arch-independent libraries, modules>
+#	DESTINC		=	<destination for include files>
+#	DESTMAN		=	<destination for manual pages>
+#	DESTDOC		=	<destination for documention>
+#	DESTINFO	=	<destination for TeXinfo(Emacs) documentation>
+#	DESTDIST	=	<destination for distribution files>
+#
+#	#	Additional rules would follow here, particular additions to
+#	#	rules like kempt, tidy, clean, and pure.
+#
+#	#	regression testing should be present using check/installcheck
+#
+#------------------------------------------------------------- Eof
