@@ -208,6 +208,11 @@ The following files were actually pulled in from a larger build system:
 There are included in the repository in the hopes they'll be useful, but
 replacing the GNUmakefile outright with a simpler approach would also work.
 
+The normal product of "make dist" is generally available at the URL below, and
+includes updating files from the surrounding build system:
+
+    https://www.talisman.org/~erlkonig/software/pub/alienfx.tar.gz
+
 THANKS
 ------
 
