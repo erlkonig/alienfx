@@ -205,8 +205,9 @@ The following files were actually pulled in from a larger build system:
 * configure
 * configure.ac
 
-There are included in the repository in the hopes they'll be useful, but
-replacing the GNUmakefile outright with a simpler approach would also work.
+There are included in the repository in the hopes they'll make it easy to
+build alienfx without too much effort, but replacing the GNUmakefile outright
+with a simpler approach would also work.
 
 The normal product of "make dist" is generally available at the URL below, and
 includes updating files from the surrounding build system:
