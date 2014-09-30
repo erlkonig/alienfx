@@ -161,11 +161,11 @@ AlienFxType_t AlienFxTypes[] = {
 	// vendor product names - these aren't consistent with iProduct,
 	// since I only had one data point and no easy way to see if AlienWare
 	// had just stamped "G2 Desktop" on all of them or something.
-	{ 0x187c, 0x514, "m11x", 2000000, /* according to github:stefansaraev */
+	{ 0x187c, 0x514, "m11x", 100000, /* from github:stefansaraev */
 	  LightsM11x, sizeof LightsM11x / sizeof *LightsM11x },
-	{ 0x187c, 0x511, "area51", 0,
+	{ 0x187c, 0x511, "area51", 100000,  /* delay not yet verified */
 	  LightsArea51, sizeof LightsArea51 / sizeof *LightsArea51 },
-	{ 0x187c, 0x512, "allpowerful", 0,
+	{ 0x187c, 0x512, "allpowerful", 100000,  /* delay not yet verified */
 	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful },
 	{ 0x187c, 0x513, "aurora", 2500, /* ~R2 0µs; R4-ALX ≥2265µs */
 	  LightsAurora, sizeof LightsAurora / sizeof *LightsAurora }
