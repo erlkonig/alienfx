@@ -276,6 +276,8 @@ int InitDevice(AlienFxType_t *all, AlienFxHandle_t *fxh)
 		libusb_set_debug(fxh->usb_context, 3);
 		int i;
 		for(i = 0 ; i < AlienFxTypesCount ; ++i) {
+			if(succp)
+				break;
 			AlienFxType_t *fxtype = &all[i];
 			if(verbose)
 				printf("scanning for AlienFX type \"%s\"...\n", fxtype->name);
@@ -287,7 +289,7 @@ int InitDevice(AlienFxType_t *all, AlienFxHandle_t *fxh)
 				fxh->info = fxtype;
 				if(verbose)
 					printf("found AlienFX type \"%s\"...\n", fxh->info->name);
-				succp = 1;  /* no break - might be more one - possibly... */
+				succp = 1;
 			}
 		}
 		if(fxh->usb_handle) {
