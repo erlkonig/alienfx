@@ -257,15 +257,15 @@ int ReadDevice(libusb_device_handle *usb_device,
 {
     unsigned char buf[READ_DATA_SIZE];
     memset(&buf[0], FILL_BYTE, READ_DATA_SIZE);
+	// returns can be negative for various errors, -6 is LIBUSB_ERROR_BUSY.
     int read_bytes = libusb_control_transfer(usb_device,
                                              READ_REQUEST_TYPE, READ_REQUEST,
                                              READ_VALUE, READ_INDEX,
                                              &buf[0], sizeof buf, 0);
     memcpy(data, &buf[0], read_bytes);
-#if 0                           // shouldn't be needed 
     if(read_bytes < data_bytes)
-        memset(&data[read_bytes], '\0', data_bytes - read_bytes);
-#endif
+        memset(&data[read_bytes], '\0',
+			   data_bytes - (read_bytes < 0 ? 0 : read_bytes));
     return read_bytes;
 }
 
@@ -417,14 +417,21 @@ int Loop(libusb_device_handle *alienfx) // preceding commands are a loop
 }
 
 int IsBusy(libusb_device_handle *alienfx, int *is_busy_return)
+/*:note: The is_busy_return should be set to 1 if the device is busy,
+ *       but hasn't yet been implemented.
+ */
 {
     int succp = 0;
+	int read_bytes = 0;
 	unsigned char data[] = { START_BYTE, COMMAND_GET_STATUS };
     unsigned char data_input[READ_DATA_SIZE];
 
-    if(0 <  ReadDevice(alienfx, &data_input[0], READ_DATA_SIZE)) {
+	read_bytes = ReadDevice(alienfx, &data_input[0], READ_DATA_SIZE);
+    if(0 < read_bytes) {
         succp = (START_BYTE == data_input[0]);
     } else {
+		if(LIBUSB_ERROR_BUSY == read_bytes)
+			*is_busy_return = 1;
         fprintf(stderr, "ReadDevice: failed to read any bytes: %s\n",
                 strerror(errno));
     }
