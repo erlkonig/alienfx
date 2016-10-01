@@ -277,12 +277,10 @@ int InitDevice(AlienFxType_t *all, AlienFxHandle_t *fxh)
 	if(0 == libusb_init( & fxh->usb_context))	{
 		libusb_set_debug(fxh->usb_context, 3);
 		int i;
-		for(i = 0 ; i < AlienFxTypesCount ; ++i) {
-			if(succp)
-				break;
+		for(i = 0 ; (i < AlienFxTypesCount) && ! succp ; ++i) {
 			AlienFxType_t *fxtype = &all[i];
 			if(verbose)
-				printf("scanning for AlienFX type \"%s\"...\n", fxtype->name);
+				printf("scanning for AlienFX type \"%s\"... ", fxtype->name);
 			if(fxh->usb_handle =
 			   libusb_open_device_with_vid_pid(fxh->usb_context,
 											   fxtype->idVendor,
@@ -290,9 +288,10 @@ int InitDevice(AlienFxType_t *all, AlienFxHandle_t *fxh)
 			{
 				fxh->info = fxtype;
 				if(verbose)
-					printf("found AlienFX type \"%s\"...\n", fxh->info->name);
+					printf("found \"%s\".\n", fxh->info->name);
 				succp = 1;
-			}
+			} else if(verbose)
+				puts("no.");
 		}
 		if(fxh->usb_handle) {
 			Detach(fxh->usb_handle);
@@ -300,8 +299,7 @@ int InitDevice(AlienFxType_t *all, AlienFxHandle_t *fxh)
 				perror("libusb_claim_interface");
 				fxh->usb_handle = 0;
 			}
-		} else perror("libusb_open_device_with_vid_pid");
-
+		}
 	} else perror("libusb_init");
 	return succp;
 }
@@ -574,7 +572,7 @@ int main(int ac, char **av)
 {
     int succp = 1;
 	Progname = av[0];
-	AlienFxHandle_t fx;
+	AlienFxHandle_t fx = {0,};  // relying on the compiler to obviate memset.
 	int ai = 1;
 	while(av[ai] && ('-' == av[ai][0]) && (1 < strlen(av[ai]))) {
 		// a simple "-" is handled later
