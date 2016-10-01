@@ -13,10 +13,12 @@ static const char *Version[] = {
 	(const char*)0
 	};
 
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <unistd.h>
 
 #include <libusb-1.0/libusb.h>
 
