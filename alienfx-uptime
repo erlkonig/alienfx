@@ -16,6 +16,7 @@ def Int0to255(n_string):
 
 Parser = argparse.ArgumentParser(
     description='''Visualize CPU load on the system's AlienFX lighting.''')
+Parser.add_argument('-v', '--verbose', action='store_true')
 Parser.add_argument('-a', '--amplitude', dest='amplitude', action='store',
                     type=Int0to255, default=255, help=
                     'lighting amplitude in the range [0, 255] (default 255)')
@@ -35,6 +36,7 @@ def Main():
     args = Parser.parse_args()    # returns a Namespace object
     amplitude = args.amplitude
     dryrun = args.dryrun
+    verbose = args.verbose
 
     cpucount = 0                # a bit of a pessimistic start...
     with open('/proc/cpuinfo') as cpuinfo:
@@ -79,6 +81,8 @@ def Main():
         if dryrun:
             print(cmd + ' # load (all %f, avg %f) cpus %d' % (load_all, load, cpucount))
         else:
+            if verbose:
+                print(cmd)
             alienfx.stdin.write(cmd + '\n')
         time.sleep(2)
 
