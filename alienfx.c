@@ -304,34 +304,6 @@ int InitDevice(AlienFxType_t *all, AlienFxHandle_t *fxh)
 	return succp;
 }
 
-int InitDeviceOld(libusb_device_handle **alienfx_return)
-{
-	int alienfx_pid = 0x513;
-	int alienfx_vid = 0x187c;
-	libusb_context       *context = 0;
-	libusb_device_handle *alienfx = 0;
-
-	*alienfx_return = 0;		// assume failure 
-	libusb_init(&context);
-	libusb_set_debug(context, 3);
-
-	if( ! (alienfx = libusb_open_device_with_vid_pid(context,
-													 alienfx_vid,
-													 alienfx_pid)))
-	{
-		perror("libusb_open_device_with_vid_pid");
-		exit(1);
-	}
-
-	Detach(alienfx);
-	if(0 > libusb_claim_interface(alienfx, 0)) {
-		perror("libusb_claim_interface");
-		alienfx = 0;
-	}
-	*alienfx_return = alienfx;
-	return alienfx ? 1 : 0;
-}
-
 void ReleaseDevice(AlienFxHandle_t *fx)
 {
 	libusb_release_interface(fx->usb_handle, 0);
