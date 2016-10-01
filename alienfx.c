@@ -575,7 +575,8 @@ int main(int ac, char **av)
             succp = Command( & fx, & av[ai]);
         }
         ReleaseDevice( & fx);
-	}
+	} else 
+		fputs("No recognized AlienFX device found.\n", stderr);
 
     return succp ? 0 : -1;
 }
