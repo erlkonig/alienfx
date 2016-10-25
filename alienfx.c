@@ -172,7 +172,9 @@ AlienFxType_t AlienFxTypes[] = {
 	{ 0x187c, 0x513, "aurora", 2500, /* ~R2 0µs; R4-ALX ≥2265µs */
 	  LightsAurora, sizeof LightsAurora / sizeof *LightsAurora },
 	{ 0x187c, 0x518, "m18x", 2500, /* nothing much verified yet */
-	  LightsM11x, sizeof LightsAurora / sizeof *LightsAurora }
+	  LightsM11x, sizeof LightsAurora / sizeof *LightsAurora },
+	{ 0x187c, 0x524, "m17x", 2500, /* nothing much verified yet */
+	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful }
 };
 int AlienFxTypesCount = sizeof AlienFxTypes / sizeof AlienFxTypes[0];
 
