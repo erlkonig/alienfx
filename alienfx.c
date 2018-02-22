@@ -133,6 +133,27 @@ AlienFxLights_t LightsArea51[] = {
 unsigned int LightsArea51Count = (sizeof LightsArea51
 								  / sizeof *LightsArea51);
 
+// Area51 R4 lighting.
+AlienFxLights_t LightsArea51r4[] = {
+	{ 0x0001, "right-top"     ,0 },	
+	{ 0x0002, "right-front"   ,0 },
+	{ 0x0004, "right-back"    ,0 },
+//	{ 0x0008,
+	{ 0x0010, "right-bottoms" ,0 },	
+	{ 0x0020, "left-top"      ,0 }, // and 0x80
+    { 0x0040, "left-back"     ,0 }, // left-back+top + right-back, wtf?
+//  { 0x0080, also left-top
+	{ 0x0080, "logo"          ,0 }, // alien
+	{ 0x0100, "right-bottoms+top-back" ,0 }, // wierd
+	{ 0x0200, "head+right-front"       ,0 }, // wierd
+	{ 0x0400, "right-edge"    ,0 },
+	{ 0x1fff, "all"           ,1 },     // definitely does all of them.
+	{ 0x2000, "side-fronts"   ,0 },
+	{ 0x8000, "left-back"     ,0 }, // button
+};
+unsigned int LightsArea51r4Count = (sizeof LightsArea51r4
+								    / sizeof *LightsArea51r4);
+
 // Aurora lighting.  Left/right from the alien head's persp,0 ective, facing you
 AlienFxLights_t LightsAurora[] = {
 	{ 0x001, "head"       ,0 }, // alien's (his perspective determines left/right)
@@ -175,6 +196,8 @@ AlienFxType_t AlienFxTypes[] = {
 	  LightsM11x, sizeof LightsAurora / sizeof *LightsAurora },
 	{ 0x187c, 0x524, "m17x", 2500, /* nothing much verified yet */
 	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful },
+	{ 0x187c, 0x526, "area51r4", 2500, /* nothing much verified yet */
+	  LightsArea51r4, sizeof LightsArea51r4 / sizeof *LightsArea51r4 },
 };
 int AlienFxTypesCount = sizeof AlienFxTypes / sizeof AlienFxTypes[0];
 
