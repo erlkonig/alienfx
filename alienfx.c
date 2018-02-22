@@ -42,24 +42,24 @@ static const char *Version[] = {
 #define READ_INDEX        0x0
 #define READ_DATA_SIZE    9  //  (alienFXid == ALLPOWERFULL_ALIENFX ? 8 : 9)
 
-// all of these matched in code for ALLPOWERFULL and AREA51 controllers 
+// all of these matched in code for ALLPOWERFULL and AREA51 controllers
 #define STATE_BUSY               	  0x11
 #define STATE_READY              	  0x10
 #define STATE_UNKNOWN_COMMAND    	  0x12
 
 #define SUPPORTED_COMMANDS       	    15
-#define COMMAND_END_STORAGE      	  0x00 // End storage block 
+#define COMMAND_END_STORAGE      	  0x00 // End storage block
 #define COMMAND_SET_MORPH_COLOR  	  0x01
 #define COMMAND_SET_BLINK_COLOR  	  0x02
 #define COMMAND_SET_COLOR        	  0x03
 #define COMMAND_LOOP_BLOCK_END   	  0x04
-#define COMMAND_TRANSMIT_EXECUTE 	  0x05 // End transmition and execute 
-#define COMMAND_GET_STATUS       	  0x06 // Get device status 
+#define COMMAND_TRANSMIT_EXECUTE 	  0x05 // End transmition and execute
+#define COMMAND_GET_STATUS       	  0x06 // Get device status
 #define COMMAND_RESET            	  0x07
-#define COMMAND_SAVE_NEXT        	  0x08 // Save next inst' in storage block 
-#define COMMAND_SAVE             	  0x09 // Save storage data 
-#define COMMAND_BATTERY_STATE    	  0x0F // Set batery state 
-#define COMMAND_SET_SPEED        	  0x0E // Set display speed 
+#define COMMAND_SAVE_NEXT        	  0x08 // Save next inst' in storage block
+#define COMMAND_SAVE             	  0x09 // Save storage data
+#define COMMAND_BATTERY_STATE    	  0x0F // Set batery state
+#define COMMAND_SET_SPEED        	  0x0E // Set display speed
 
 #define RESET_TOUCH_CONTROLS     	  0x01
 #define RESET_SLEEP_LIGHTS_ON    	  0x02
@@ -68,7 +68,7 @@ static const char *Version[] = {
 
 #define DATA_LENGTH                      9
 
-#define START_BYTE               	  0x02  // shows 0x00 for Area51; bug? 
+#define START_BYTE               	  0x02  // shows 0x00 for Area51; bug?
 #define FILL_BYTE                	  0x00
 
 #define BLOCK_LOAD_ON_BOOT       	  0x01
@@ -174,7 +174,7 @@ AlienFxType_t AlienFxTypes[] = {
 	{ 0x187c, 0x518, "m18x", 2500, /* nothing much verified yet */
 	  LightsM11x, sizeof LightsAurora / sizeof *LightsAurora },
 	{ 0x187c, 0x524, "m17x", 2500, /* nothing much verified yet */
-	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful }
+	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful },
 };
 int AlienFxTypesCount = sizeof AlienFxTypes / sizeof AlienFxTypes[0];
 
@@ -213,7 +213,7 @@ unsigned int LightMask(AlienFxHandle_t *fx, char **names)
 				if( ! strcmp(fx->info->lights[i].name, name))
 				{
 					if(debug)
-						printf("%#x | %#x = %#x\n", 
+						printf("%#x | %#x = %#x\n",
 							   mask,
 							   fx->info->lights[i].id,
 							   mask | fx->info->lights[i].id);
@@ -236,7 +236,7 @@ void Attach(libusb_device_handle *device){
 	libusb_attach_kernel_driver(device, 0);
 }
 
-int WriteDevice(libusb_device_handle *usb_handle, // return whether successful 
+int WriteDevice(libusb_device_handle *usb_handle, // return whether successful
 				unsigned char *data,
 				int data_bytes)
 {
@@ -256,9 +256,9 @@ int WriteDevice(libusb_device_handle *usb_handle, // return whether successful
     return (written_bytes == SEND_DATA_SIZE);
 }
 
-// return number of bytes read 
+// return number of bytes read
 int ReadDevice(libusb_device_handle *usb_device,
-               unsigned char *data, // point to buffer to receive data 
+               unsigned char *data, // point to buffer to receive data
                int data_bytes)
 {
     unsigned char buf[READ_DATA_SIZE];
@@ -347,7 +347,7 @@ int SaveNext(libusb_device_handle *alienfx, int block)
 }
 
 int SaveDone(libusb_device_handle *alienfx)
-{ 
+{
     unsigned char data[] = { START_BYTE, COMMAND_SAVE };
     return WriteDevice(alienfx, &data[0], sizeof data);
 }
@@ -355,8 +355,8 @@ int SaveDone(libusb_device_handle *alienfx)
 int ColorSet(libusb_device_handle *alienfx, int block, int region,
              int r, int g, int b)
 {
-    unsigned char green = (g >> 4) & 0x0f; // only used within red_green 
-    unsigned char red   = (r >> 0) & 0xf0; // only used within red_green 
+    unsigned char green = (g >> 4) & 0x0f; // only used within red_green
+    unsigned char red   = (r >> 0) & 0xf0; // only used within red_green
     unsigned char blue  = (b >> 0) & 0xf0;
     unsigned char red_green = red | green;
 
@@ -386,7 +386,7 @@ int SendAndExec(libusb_device_handle *alienfx)
     return WriteDevice(alienfx, &data[0], sizeof data);
 }
 
-int Loop(libusb_device_handle *alienfx) // preceding commands are a loop 
+int Loop(libusb_device_handle *alienfx) // preceding commands are a loop
 {
     unsigned char data[] = { START_BYTE, COMMAND_LOOP_BLOCK_END };
     return WriteDevice(alienfx, &data[0], sizeof data);
@@ -424,13 +424,13 @@ int CageInt(int min, int num, int max)
 }
 
 int SetDelay(libusb_device_handle *alienfx, unsigned int delay)
-// delay = [MIN_SPEED, MAX_SPEED], but it's a delay 
+// delay = [MIN_SPEED, MAX_SPEED], but it's a delay
 {
     delay = CageInt(MIN_SPEED, delay, MAX_SPEED);
-    delay = (delay / STEP_SPEED) * STEP_SPEED; // quantize to step multiple 
+    delay = (delay / STEP_SPEED) * STEP_SPEED; // quantize to step multiple
     unsigned char b1 = (delay >> 8) & 0xff;
     unsigned char b2 = (delay >> 0) & 0xff;
-    
+ 
     unsigned char data[] = { START_BYTE, COMMAND_SET_SPEED, b1, b2 };
     return WriteDevice(alienfx, &data[0], sizeof data);
 }
@@ -447,7 +447,7 @@ void WhenReady(libusb_device_handle *alienfx)
 
 int CommandCount(char **cmdv) { return Sscount(cmdv); }
 
-int Command(AlienFxHandle_t *fx, char **cmdv) 
+int Command(AlienFxHandle_t *fx, char **cmdv)
 {
     int cmdc = CommandCount(cmdv); // cmdv[cmdc] == (char*)0
 	if(debug)
@@ -457,7 +457,7 @@ int Command(AlienFxHandle_t *fx, char **cmdv)
             fputs("error: too few arguments to command \"color\"\n", stderr);
             return 0;
         } else {
-            int block = BLOCK_AC_POWER; // int block = BLOCK_LOAD_ON_BOOT 
+            int block = BLOCK_AC_POWER; // int block = BLOCK_LOAD_ON_BOOT
 			char *all[] = { "all", 0 };
 			unsigned int region = LightMask(fx, all);
             int r = 0, g = 0, b = 0;
@@ -473,8 +473,8 @@ int Command(AlienFxHandle_t *fx, char **cmdv)
                 Reset(fx->usb_handle, RESET_ALL_LIGHTS_ON);
 				/* apparently some types may need a brief pause here */
 				usleep(fx->info->post_reset_delay);
-                ColorSet(fx->usb_handle, block, region, r, g, b); 
-                Loop(fx->usb_handle);       
+                ColorSet(fx->usb_handle, block, region, r, g, b);
+                Loop(fx->usb_handle);
                 SendAndExec(fx->usb_handle);
             }
         }
@@ -558,7 +558,7 @@ int main(int ac, char **av)
 		else { Syntax(stderr); return -1; }
 		++ai;
 	}
-	if(ai >= ac) { Syntax(stderr); return -1; } 
+	if(ai >= ac) { Syntax(stderr); return -1; }
 	if(InitDevice(AlienFxTypes, &fx))
 	{
         int block = BLOCK_AC_POWER; // int block = BLOCK_LOAD_ON_BOOT;
@@ -579,10 +579,10 @@ int main(int ac, char **av)
             succp = Command( & fx, & av[ai]);
         }
         ReleaseDevice( & fx);
-	} else 
+	} else
 		fputs("No recognized AlienFX device found.\n", stderr);
 
     return succp ? 0 : -1;
 }
 
-// ------------------------------------------------------------- eof 
+// ------------------------------------------------------------- eof
