@@ -119,6 +119,22 @@ AlienFxLights_t LightsAllPowerful[] = {
 };
 unsigned int LightsAllPowerfulCount = (sizeof LightsAllPowerful
 									   / sizeof *LightsAllPowerful);
+
+// Alienware 13 R3 OLED lighting
+AlienFxLights_t LightsAlienware13r3oled[] = {
+        { 0x0001, "keyboard-right"      ,0 },
+        { 0x0002, "keyboard-middleright",0 },
+        { 0x0004, "keyboard-left"       ,0 },
+        { 0x0008, "keyboard-middleleft" ,0 },
+        { 0x0100, "power-button"        ,0 },
+        { 0x0020, "head"                ,0 }, // alien's
+        { 0x0040, "name"                ,0 },
+        { 0x0200, "touchpad"            ,0 },
+        { 0x7fff, "all"                 ,1 },
+};
+unsigned int LightsAlienware13r3oledCount = (sizeof LightsAlienware13r3oled
+                                                                           / sizeof *LightsAlienware13r3oled);
+
 // Area51 lighting.
 AlienFxLights_t LightsArea51[] = {
 	{ 0x00001, "touchpad"   ,0 },
@@ -175,6 +191,8 @@ AlienFxType_t AlienFxTypes[] = {
 	  LightsM11x, sizeof LightsAurora / sizeof *LightsAurora },
 	{ 0x187c, 0x524, "m17x", 2500, /* nothing much verified yet */
 	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful },
+	{ 0x187c, 0x529, "13r3oled", 2500, /* 13 R3 OLED */
+	  LightsAlienware13r3oled, sizeof LightsAlienware13r3oled / sizeof *LightsAlienware13r3oled },
 };
 int AlienFxTypesCount = sizeof AlienFxTypes / sizeof AlienFxTypes[0];
 
