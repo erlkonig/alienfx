@@ -215,7 +215,7 @@ AlienFxType_t AlienFxTypes[] = {
 	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful },
 	{ 0x187c, 0x529, "13r3oled", 2500, /* 13 R3 OLED */
 	  LightsAlienware13r3oled, sizeof LightsAlienware13r3oled / sizeof *LightsAlienware13r3oled },
-	{ 0x187c, 0x530, "15r3", 2500, /* 13 R3 OLED */
+	{ 0x187c, 0x530, "15r3", 2500, /* 15 R3 OLED */
 	  LightsAlienware15r3, sizeof LightsAlienware15r3 / sizeof *LightsAlienware15r3},
 };
 int AlienFxTypesCount = sizeof AlienFxTypes / sizeof AlienFxTypes[0];
