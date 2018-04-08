@@ -19,6 +19,7 @@ static const char *Version[] = {
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include <libusb-1.0/libusb.h>
 
@@ -135,6 +136,27 @@ AlienFxLights_t LightsAlienware13r3oled[] = {
 unsigned int LightsAlienware13r3oledCount = (sizeof LightsAlienware13r3oled
                                                                            / sizeof *LightsAlienware13r3oled);
 
+// Alienware 15 R3 lighting.
+AlienFxLights_t LightsAlienware15r3[] = {
+	{ 0x00002, "keyboard-mid-right"       ,0 },
+	{ 0x00004, "keyboard-mid-left"        ,0 },
+	{ 0x00008, "keyboard-far-left"        ,0 }, // alien
+	{ 0x00001, "keyboard-far-right"       ,0 }, // alien's
+	{ 0x00100, "power-button"             ,0 },
+	{ 0x00020, "head"                     ,0 }, // button
+	{ 0x00040, "name"                     ,0 },
+	{ 0x00800, "bottom-right-burner"      ,0 },
+	{ 0x00400, "bottom-left-burner"       ,0 },
+	{ 0x02000, "top-right-burner"         ,0 },
+	{ 0x01000, "top-left-burner"          ,0 },
+	{ 0x00080, "touchpad"                 ,0 },
+	{ 0x04000, "special"                 ,0 },
+	{ 0x0ffff, "all"                      ,1 },
+};
+
+unsigned int LightsAlienware15r3Count = (sizeof LightsAlienware15r3
+                                             / sizeof *LightsAlienware15r3);
+
 // Area51 lighting.
 AlienFxLights_t LightsArea51[] = {
 	{ 0x00001, "touchpad"   ,0 },
@@ -193,6 +215,8 @@ AlienFxType_t AlienFxTypes[] = {
 	  LightsAllPowerful, sizeof LightsAllPowerful / sizeof *LightsAllPowerful },
 	{ 0x187c, 0x529, "13r3oled", 2500, /* 13 R3 OLED */
 	  LightsAlienware13r3oled, sizeof LightsAlienware13r3oled / sizeof *LightsAlienware13r3oled },
+	{ 0x187c, 0x530, "15r3", 2500, /* 15 R3 OLED */
+	  LightsAlienware15r3, sizeof LightsAlienware15r3 / sizeof *LightsAlienware15r3},
 };
 int AlienFxTypesCount = sizeof AlienFxTypes / sizeof AlienFxTypes[0];
 
@@ -391,11 +415,41 @@ int ColorSet(libusb_device_handle *alienfx, int block, int region,
                              blue,
                              0 };
     return WriteDevice(alienfx, &data[0], sizeof data);
-}	
-	
-int ColorSetAll(libusb_device_handle *alienfx, int block, int r, int g, int b)
+}
+
+int ColorSetAlien15r3(libusb_device_handle *alienfx, int block, int region,
+             int r, int g, int b)
 {
-    return ColorSet(alienfx, block, 0xffffff, r, g, b);
+    unsigned char red = (char) (r & 0xff);
+    unsigned char green = (char) (g & 0xff);
+    unsigned char blue = (char) (b & 0xff);
+
+
+
+    unsigned char reg1 = (unsigned char)(((unsigned int)region >> 16) & 0xff);
+    unsigned char reg2 = (unsigned char)(((unsigned int)region >>  8) & 0xff);
+    unsigned char reg3 = (unsigned char)(((unsigned int)region >>  0) & 0xff);
+
+    unsigned char data[] = { START_BYTE, COMMAND_SET_COLOR,
+                             (block & 0xFF),
+                             reg1, // 0xff for *all* regions
+                             reg2, // 0xff for *all* regions
+                             reg3, // 0xff for *all* regions
+                             red,
+                             blue,
+                             green};
+    return WriteDevice(alienfx, &data[0], sizeof data);
+}
+
+int ColorSetAll(libusb_device_handle *alienfx, int block, int r, int g, int b, bool isAlien15r3)
+{
+     
+    if(isAlien15r3){
+      return ColorSetAlien15r3(alienfx, block, 0xffffff, r, g, b);
+    } else{
+      return ColorSet(alienfx, block, 0xffffff, r, g, b);
+    }
+
 }
 
 int SendAndExec(libusb_device_handle *alienfx)
@@ -480,21 +534,26 @@ int Command(AlienFxHandle_t *fx, char **cmdv)
 			unsigned int region = LightMask(fx, all);
             int r = 0, g = 0, b = 0;
             if(   (1 == sscanf(cmdv[1], "%d", &r))
-               && (1 == sscanf(cmdv[2], "%d", &g))
-               && (1 == sscanf(cmdv[3], "%d", &b)))
-            {
+                  && (1 == sscanf(cmdv[2], "%d", &g))
+                  && (1 == sscanf(cmdv[3], "%d", &b)))
+              {
                 if(cmdc > 4)
-					region = LightMask(fx, & cmdv[4]);
-				if(debug)
-					fprintf(stderr, "command: color %d %d %d %x\n",
-							r,g,b, region);
+                  region = LightMask(fx, & cmdv[4]);
+                if(debug)
+                  fprintf(stderr, "command: color %d %d %d %x\n",
+                          r,g,b, region);
                 Reset(fx->usb_handle, RESET_ALL_LIGHTS_ON);
-				/* apparently some types may need a brief pause here */
-				usleep(fx->info->post_reset_delay);
-                ColorSet(fx->usb_handle, block, region, r, g, b);
+                /* apparently some types may need a brief pause here */
+                usleep(fx->info->post_reset_delay);
+		// both 13f3 and 15r3 have this changed API
+                if (fx->info->idProduct == 0x530 || fx->info->idProduct == 0x529){
+                  ColorSetAlien15r3(fx->usb_handle, block, region, r, g, b);
+                } else{
+                  ColorSet(fx->usb_handle, block, region, r, g, b);
+                }
                 Loop(fx->usb_handle);
                 SendAndExec(fx->usb_handle);
-            }
+              }
         }
 	} else if( ! strcmp("info", cmdv[0])) {
 		if(verbose) {
