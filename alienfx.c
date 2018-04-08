@@ -545,7 +545,8 @@ int Command(AlienFxHandle_t *fx, char **cmdv)
                 Reset(fx->usb_handle, RESET_ALL_LIGHTS_ON);
                 /* apparently some types may need a brief pause here */
                 usleep(fx->info->post_reset_delay);
-                if (fx->info->idProduct == 0x530){
+		// both 13f3 and 15r3 have this changed API
+                if (fx->info->idProduct == 0x530 || fx->info->idProduct == 0x529){
                   ColorSetAlien15r3(fx->usb_handle, block, region, r, g, b);
                 } else{
                   ColorSet(fx->usb_handle, block, region, r, g, b);
